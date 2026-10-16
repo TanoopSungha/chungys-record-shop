@@ -1,0 +1,124 @@
+{
+  "name": "chungys-record-shop",
+  "productName": "Chungy's Record Shop",
+  "version": "1.0.0",
+  "description": "Run a struggling high-street record shop with Chungy: dig crates for rare vinyl, read your customers and match them with the perfect record, and keep the landlord off your back.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/sim.js",
+    "dist": "electron-builder --publish never",
+    "dist:mac": "electron-builder --mac --publish never",
+    "dist:win": "electron-builder --win --publish never",
+    "dist:linux": "electron-builder --linux --publish never",
+    "mobile:web": "node scripts/build-web.js",
+    "mobile:sync": "node scripts/build-web.js && npx cap sync",
+    "mobile:android": "npm run mobile:sync && cd android && ./gradlew assembleDebug",
+    "mobile:ios": "npm run mobile:sync && npx cap open ios"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/cli": "^8.5.3",
+    "@capacitor/ios": "^8.5.3",
+    "electron": "^33.0.0",
+    "electron-builder": "^26.15.3"
+  },
+  "author": "Snoopster Gaming",
+  "build": {
+    "appId": "com.snoopster.chungy",
+    "productName": "Chungy's Record Shop",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "src/**",
+      "package.json"
+    ],
+    "artifactName": "Chungys-Record-Shop-${version}-${os}-${arch}.${ext}",
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "category": "public.app-category.simulation-games",
+      "icon": "build/icon.icns",
+      "identity": null
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "tar.gz",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "Game",
+      "icon": "build/icon.png",
+      "maintainer": "Snoopster Gaming <tsungha@outlook.com>",
+      "synopsis": "Chungy's Record Shop"
+    }
+  },
+  "homepage": "https://github.com/TanoopSungha/chungys-record-shop",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TanoopSungha/chungys-record-shop.git"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.5.3"
+  }
+}

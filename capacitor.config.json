@@ -1,0 +1,8 @@
+{
+  "appId": "com.snoopster.chungy",
+  "appName": "Chungy's Record Shop",
+  "webDir": "www",
+  "backgroundColor": "#2a1636",
+  "android": { "allowMixedContent": false },
+  "ios": { "contentInset": "never" }
+}

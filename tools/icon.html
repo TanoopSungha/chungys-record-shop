@@ -1,0 +1,26 @@
+<!doctype html><html><head><link rel="stylesheet" href="../src/style.css"></head><body style="margin:0;background:none">
+<!-- Renders the app icon and splash screen from the game's own art. Used by tools/icons.mjs. -->
+<canvas id="i" width="1024" height="1024"></canvas><canvas id="s" width="2732" height="2732"></canvas>
+<script src="../src/data.js"></script><script src="../src/art.js"></script>
+<script>
+async function go(){
+ await document.fonts.load('40px "Luckiest Guy"');
+ const A=CRS_ART;
+ function badge(c,S){
+  const g=c.createRadialGradient(S/2,S*0.45,S*0.1,S/2,S/2,S*0.7); g.addColorStop(0,'#ffc95a'); g.addColorStop(1,'#e2832a'); c.fillStyle=g; c.fillRect(0,0,S,S);
+  A.vinyl(c,S*0.5,S*0.5,S*0.44,0.6,'#ff5fa2');
+  c.save(); c.beginPath(); c.arc(S/2,S/2,S*0.44,0,Math.PI*2); c.clip();
+  A.chungy(c,S*0.5,S*1.3,S/250,{face:'joy',t:0});
+  c.restore();
+ }
+ badge(document.getElementById('i').getContext('2d'),1024);
+ const s=document.getElementById('s').getContext('2d'); s.fillStyle='#2a1636'; s.fillRect(0,0,2732,2732);
+ const tmp=document.createElement('canvas'); tmp.width=tmp.height=800; badge(tmp.getContext('2d'),800);
+ s.save(); s.beginPath(); s.arc(1366,1206,400,0,7); s.clip(); s.drawImage(tmp,966,806); s.restore();
+ s.textAlign='center'; s.lineWidth=18; s.strokeStyle='#2a1a24';
+ s.font='190px "Luckiest Guy"'; s.fillStyle='#f2a93b'; s.strokeText("CHUNGY'S",1366,1830); s.fillText("CHUNGY'S",1366,1830);
+ s.font='120px "Luckiest Guy"'; s.fillStyle='#ff5fa2'; s.strokeText('RECORD SHOP',1366,1990); s.fillText('RECORD SHOP',1366,1990);
+ window.done=true;
+}
+go();
+</script></body></html>
