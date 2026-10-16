@@ -134,7 +134,7 @@
     E.save(S);
     const cards = dig.items.map((it, i) => {
       const rec = D.BY_ID[it.id];
-      return `<div class="flip r-${rec.rarity}" data-i="${i}"><div class="in"><div class="f">?</div>
+      return `<div class="flip r-${rec.rarity}" data-i="${i}"><div class="burst"></div><div class="in"><div class="f">?</div>
         <div class="b">${it.isNew ? '<div class="new">NEW</div>' : ''}<img src="${sleeveURL(rec)}" alt="">
         <div class="m"><b>${esc(rec.title)}</b><br>${esc(rec.artist)}<br>${genreTag(rec.genre)} ${rec.era} · ${it.grade}</div>
         <div class="rar" style="color:${D.RARITY[rec.rarity].col};-webkit-text-stroke:.6px #2a1a24">${D.RARITY[rec.rarity].name} · ${money(E.valueOf(it))}</div></div></div></div>`;
@@ -382,11 +382,12 @@
     c.clearRect(0, 0, W, H);
     const T = S && S.today;
     const np = S && S.nowPlaying && S.stock.find(x => x.uid === S.nowPlaying);
-    const shelfCols = S ? S.stock.slice(0, 34).map(x => D.GENRES[E.recOf(x).genre].col) : null;
+    const forSale = S ? S.stock.filter(x => !S.wall.includes(x.uid)).map(E.recOf) : [];
+    const shelfRecs = forSale.length ? forSale : D.CATALOGUE.filter((_, i) => i % 7 === 0);
     const wallRecs = S ? S.wall.map(uid => S.stock.find(x => x.uid === uid)).filter(Boolean).map(E.recOf) : [];
     const st = {
       t, clock: T ? T.t / E.DAY_LEN : mode === 'evening' ? 0.95 : 0.1, up: S ? S.up : { rack: 1 }, open: mode === 'shop' && T && T.t < E.DAY_LEN,
-      rain: S && S.event && S.event.id === 'rain', bell, beat, shelf: shelfCols, binCols: shelfCols && shelfCols.length ? shelfCols : null,
+      rain: S && S.event && S.event.id === 'rain', bell, beat, shelfRecs, binRecs: shelfRecs,
       wallRecs, wallSlots: S ? E.wallSlots(S) : 0, pipSign: S && E.hasPerk(S, 'sign'),
       windowRec: S && S.windowId ? D.BY_ID[S.windowId] : null,
     };
@@ -394,7 +395,7 @@
     // Chungy behind the counter
     const cf = chungy.until > t ? chungy.face : (T && E.front(S) ? 'neutral' : 'happy');
     const ca = chungy.until > t ? chungy.arm : 'idle';
-    A.chungy(c, 1090, 556, 1.02, { face: cf === 'talk' ? 'talk' : cf, arm: ca, t, blink: (t % 4) < 0.12 });
+    if (mode !== 'title') A.chungy(c, 1090, 556, 1.02, { face: cf === 'talk' ? 'talk' : cf, arm: ca, t, blink: (t % 4) < 0.12, groove: AU.playing() ? beat : 0 });
     A.counter(c, { t, ang, npCol: np ? D.GENRES[E.recOf(np).genre].col : null, cash: S ? S.cash : 0 });
     if (np) { // floating notes from the turntable
       if (Math.random() < 0.05) parts.push({ x: 984 + (Math.random() - 0.5) * 40, y: 400, vx: (Math.random() - 0.5) * 30, vy: -60, g: 0, life: 2, kind: 'note', col: D.GENRES[E.recOf(np).genre].col });
@@ -405,14 +406,15 @@
       for (const { cu, a } of list) {
         c.globalAlpha = a.alpha;
         let face = cu.face, arm = 'idle';
-        if (cu.state === 'browse') { arm = (t + cu.cid) % 5 < 2 ? 'think' : 'idle'; face = 'neutral'; }
+        if (cu.state === 'browse') { const ph = (t + cu.cid * 1.7) % 6; arm = a.moving ? 'idle' : ph < 3.5 ? 'dig' : ph < 4.6 ? 'think' : 'idle'; face = ph < 3.5 ? 'neutral' : 'happy'; }
         if (E.front(S) === cu && cu.state === 'queue' && cu.st < 1.2) face = 'talk';
         if (cu.state === 'haggle') { face = 'wow'; arm = 'idle'; }
         if (a.hold) arm = 'hold';
         if (a.cheer > 0) { arm = 'cheer'; face = 'joy'; }
         if (cu.kind === 'thief' && cu.state === 'sneak') { arm = 'hold'; a.hold = '#c3001b'; }
         if (cu.caught) { arm = 'idle'; face = 'cross'; }
-        A.person(c, cu.look, a.x, a.y, 0.95, { walk: a.moving ? a.walk : null, face, arm, holdCol: a.hold, flip: a.flip, t, blink: a.blink > 0 });
+        const groove = cu.vibe && !a.moving && (cu.state === 'browse' || cu.state === 'queue') ? beat : 0;
+        A.person(c, cu.look, a.x, a.y, 0.95, { walk: a.moving ? a.walk : null, face, arm, holdCol: a.hold, flip: a.flip, t, blink: a.blink > 0, groove });
         c.globalAlpha = 1;
       }
     }
@@ -426,7 +428,15 @@
       else if (p.kind === 'note') { c.fillStyle = p.col; c.strokeStyle = '#2a1a24'; c.lineWidth = 3; c.font = '900 26px sans-serif'; c.strokeText('♪', p.x, p.y); c.fillText('♪', p.x, p.y); }
       c.globalAlpha = 1;
     }
-    if (mode === 'title' || mode === 'over') { c.fillStyle = 'rgba(26,15,24,.25)'; c.fillRect(0, 0, W, H); }
+    A.post(c, W, H, st);
+    if (mode === 'title' || mode === 'over') {
+      c.fillStyle = 'rgba(26,15,24,.35)'; c.fillRect(0, 0, W, H);
+      // big Chungy waving hello on the title screen, with a record spinning behind him
+      c.save(); c.globalCompositeOperation = 'lighter'; const sg = c.createRadialGradient(1080, 420, 20, 1080, 420, 330); sg.addColorStop(0, 'rgba(255,170,90,.45)'); sg.addColorStop(1, 'rgba(255,95,162,0)'); c.fillStyle = sg; c.fillRect(700, 60, 580, 660); c.restore();
+      A.chungy(c, 1080, 760, 2.05, { face: (t % 5) < 0.15 ? 'happy' : 'joy', arm: 'wave', t, groove: beat });
+      A.person(c, D.REGULARS[0].look, 170, 760, 1.55, { face: 'happy', arm: 'idle', t });
+      A.cat(c, 330, 712, 1.3, t, false, false);
+    }
   }
 
   function updateParts(dt) {

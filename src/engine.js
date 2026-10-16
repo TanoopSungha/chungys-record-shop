@@ -233,6 +233,8 @@
       skin: D.pick(r, D.SKIN), hair: D.pick(r, T.hair), hairCol: T.hairCol && r() < 0.7 ? D.pick(r, T.hairCol) : D.pick(r, D.HAIRCOL),
       top: D.pick(r, T.top), col: D.pick(r, T.cols), legs: D.pick(r, ['#2b3a67', '#222', '#4a3b2a', '#5b6470', '#1d3b2a']),
       acc: D.pick(r, T.acc), build: 0.82 + r() * 0.4, h: 0.88 + r() * 0.2, seed,
+      pattern: r() < 0.22 ? 'stripes' : r() < 0.1 ? 'spots' : 'plain', bag: r() < 0.28 ? D.pick(r, ['#f1e4c8', '#c9e4d8', '#f6c7d8', '#d8d0f0']) : null,
+      shoes: D.pick(r, ['#231a1a', '#231a1a', '#f4f4f4', '#c3001b', '#6b3e22']),
     };
   }
 
@@ -244,7 +246,7 @@
       const RG = REGULARS.find(r => r.id === force.reg);
       const g = pickR(RG.likes.filter(x => GENRES[x].unlock <= S.level).concat(RG.likes[0]));
       const rq = makeRequest(S, g, 'buyer');
-      if (!rq.req.mood && chance(0.6)) { rq.req.mood = pickR(RG.moods); rq.text = rq.text.replace(/\.?$/, '') + ` Something ${pickR(MOODS[rq.req.mood])}.`; }
+      if (!rq.req.mood && chance(0.6)) { rq.req.mood = pickR(RG.moods); rq.text = (/[.?!]$/.test(rq.text) ? rq.text : rq.text + '.') + ` Something ${pickR(MOODS[rq.req.mood])}.`; }
       c = { kind: 'regular', reg: RG.id, name: RG.name, look: { ...RG.look, legs: '#2b3a67', seed: id }, ...rq, tries: 2 };
       S.regs[RG.id].visits++;
       T.regsToday.push(RG.id);

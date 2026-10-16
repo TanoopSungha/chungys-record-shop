@@ -48,7 +48,7 @@ button.small { font-size: 14px; padding: 4px 10px; border-radius: 10px; box-shad
 @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.08); } }
 
 /* ---------- the crate (stock drawer) ---------- */
-#crate .drawer { position: absolute; left: 0; right: 0; bottom: 0; height: 172px; background: linear-gradient(#7a4527, #5b311b); border-top: 4px solid var(--ink); display: flex; flex-direction: column; }
+#crate .drawer { position: absolute; left: 0; right: 0; bottom: 0; height: 172px; background: repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 2px, transparent 2px 38px), repeating-linear-gradient(0deg, rgba(255,255,255,.04) 0 1px, transparent 1px 9px), linear-gradient(#8a5530, #5b311b); box-shadow: inset 0 6px 12px rgba(0,0,0,.35); border-top: 4px solid var(--ink); display: flex; flex-direction: column; }
 #crate .tabs { display: flex; gap: 6px; align-items: center; padding: 6px 10px 0; height: 34px; }
 #crate .tabs .lbl { font-family: var(--display); color: var(--cream); font-size: 16px; margin-right: 6px; }
 #crate .tabs button { font-size: 13px; padding: 2px 9px; border-radius: 9px; box-shadow: 0 2px 0 var(--ink); border-width: 2px; }
@@ -57,7 +57,7 @@ button.small { font-size: 14px; padding: 4px 10px; border-radius: 10px; box-shad
 #crate .row { flex: 1; display: flex; gap: 8px; overflow-x: auto; overflow-y: hidden; padding: 8px 10px 10px; scrollbar-width: thin; }
 .tile { position: relative; flex: 0 0 104px; height: 120px; border-radius: 10px; border: 3px solid var(--ink); background: var(--cream); cursor: pointer; overflow: hidden; transition: transform .1s; box-shadow: 0 3px 0 var(--ink); }
 .tile:hover { transform: translateY(-4px); }
-.tile img { width: 100%; height: 74px; object-fit: cover; display: block; border-bottom: 2px solid var(--ink); }
+.tile img { width: 100%; height: 74px; object-fit: cover; object-position: top; display: block; border-bottom: 2px solid var(--ink); }
 .tile .meta { padding: 2px 5px; font-size: 11px; line-height: 1.25; }
 .tile .meta b { font-size: 11px; }
 .tile .g { display: inline-block; border-radius: 6px; padding: 0 4px; color: #fff; font-weight: 700; font-size: 10px; }
@@ -144,7 +144,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 700; margin: 0; }
 .flip .f, .flip .b { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 12px; border: 3px solid var(--ink); box-shadow: 0 4px 0 var(--ink); }
 .flip .f { background: repeating-linear-gradient(45deg, #8a5530 0 10px, #7a4527 10px 20px); display: grid; place-items: center; font-family: var(--display); color: var(--cream); font-size: 34px; }
 .flip .b { transform: rotateY(180deg); background: var(--cream); overflow: hidden; }
-.flip .b img { width: 100%; height: 104px; display: block; object-fit: cover; border-bottom: 2px solid var(--ink); }
+.flip .b img { width: 100%; height: 104px; display: block; object-fit: cover; object-position: top; border-bottom: 2px solid var(--ink); }
 .flip .b .m { padding: 3px 6px; font-size: 11px; line-height: 1.25; }
 .flip .rar { font-family: var(--display); font-weight: 700; font-size: 13px; padding: 0 6px; }
 .flip .new { position: absolute; top: 4px; left: 4px; background: var(--pink); color: #fff; border: 2px solid var(--ink); border-radius: 8px; font-size: 11px; padding: 0 5px; font-family: var(--display); }
@@ -190,3 +190,12 @@ h1, h2, h3 { font-family: var(--display); font-weight: 700; margin: 0; }
 #intro .intro.fadeout { opacity: 0; }
 #intro video { width: 100%; height: 100%; object-fit: contain; }
 #intro .skip { position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; color: #aaa; font-size: 13px; letter-spacing: .08em; }
+
+/* reveal burst behind rare and legendary records */
+.flip .burst { position: absolute; inset: -40px; border-radius: 50%; opacity: 0; pointer-events: none; z-index: -1; transition: opacity .4s .25s; }
+.flip { position: relative; z-index: 0; }
+.flip.open.r-R .burst { opacity: .8; background: repeating-conic-gradient(rgba(63,169,255,.55) 0 10deg, transparent 10deg 20deg); animation: spin 6s linear infinite; -webkit-mask: radial-gradient(circle, #000 30%, transparent 70%); mask: radial-gradient(circle, #000 30%, transparent 70%); }
+.flip.open.r-L .burst { opacity: 1; background: repeating-conic-gradient(rgba(255,204,51,.75) 0 9deg, transparent 9deg 18deg); animation: spin 4s linear infinite; -webkit-mask: radial-gradient(circle, #000 30%, transparent 72%); mask: radial-gradient(circle, #000 30%, transparent 72%); }
+.flip.open.r-L .in { animation: bounce .6s .3s; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes bounce { 0%,100% { scale: 1; } 40% { scale: 1.12; } }
