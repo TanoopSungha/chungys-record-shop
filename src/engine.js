@@ -229,12 +229,16 @@
 
   function makeLook(genre, seed) {
     const r = D.rng(seed), T = D.TRIBES[genre];
+    const eyes = ['#6b4226', '#3b2414', '#4e7a9a', '#4e8c6f', '#7a5230', '#5a6b4c'][Math.abs(seed) % 6];
+    const lashes = (Math.abs(seed >> 3) % 2) === 0;
+    const lips = lashes && (Math.abs(seed >> 5) % 3) === 0 ? ['#d96b7a', '#c85064', '#b84a62'][Math.abs(seed >> 7) % 3] : null;
     return {
       skin: D.pick(r, D.SKIN), hair: D.pick(r, T.hair), hairCol: T.hairCol && r() < 0.7 ? D.pick(r, T.hairCol) : D.pick(r, D.HAIRCOL),
       top: D.pick(r, T.top), col: D.pick(r, T.cols), legs: D.pick(r, ['#2b3a67', '#222', '#4a3b2a', '#5b6470', '#1d3b2a']),
       acc: D.pick(r, T.acc), build: 0.82 + r() * 0.4, h: 0.88 + r() * 0.2, seed,
       pattern: r() < 0.22 ? 'stripes' : r() < 0.1 ? 'spots' : 'plain', bag: r() < 0.28 ? D.pick(r, ['#f1e4c8', '#c9e4d8', '#f6c7d8', '#d8d0f0']) : null,
       shoes: D.pick(r, ['#231a1a', '#231a1a', '#f4f4f4', '#c3001b', '#6b3e22']),
+      eyes, lashes, lips,
     };
   }
 

@@ -252,9 +252,9 @@
     const a = actors.get(cu.cid);
     const r = E.offer(S, uid);
     handle(r.ev);
-    if (r.ok && r.haggle) { AU.sfx('pop'); say('wow', 'idle'); bubbleSig = ''; return; }
+    if (r.ok && r.haggle) { AU.sfx('pop'); AU.speak("That's the one! I've been after this for years.", { who: cu.reg, seed: cu.look.seed, mood: 'wow' }); say('wow', 'idle'); bubbleSig = ''; return; }
     if (r.ok) saleDone(r, a, cu);
-    else if (r.say) { AU.sfx('fail'); reaction = { cid: cu.cid, text: r.say, until: t + 2.6 }; bubbleSig = ''; say('meh', 'idle'); if (a && r.gone) float(a.x, a.y - 250, '✗', 'red'); }
+    else if (r.say) { AU.sfx('fail'); AU.speak(r.say, { who: cu.reg, seed: cu.look.seed, mood: 'meh' }); reaction = { cid: cu.cid, text: r.say, until: t + 2.6 }; bubbleSig = ''; say('meh', 'idle'); if (a && r.gone) float(a.x, a.y - 250, '✗', 'red'); }
     crateSig = '';
   }
 
@@ -270,7 +270,8 @@
     } else say('happy', 'idle');
     if (a) { a.hold = D.GENRES[r.rec.genre].col; a.cheer = r.perfect ? 1.4 : 0; }
     for (let i = 0; i < 6; i++) parts.push({ x: x, y: y + 60, vx: (1210 - x) / 0.9 + (Math.random() - 0.5) * 80, vy: -320 - Math.random() * 120, g: 600, life: 0.9, kind: 'coin' });
-    if (r.hearts) { AU.sfx('heart'); reaction = { cid: cu.cid, text: r.regLine, until: t + 4.5, keep: true }; for (let i = 0; i < 5; i++) parts.push({ x: x + (Math.random() - 0.5) * 60, y: y + 40, vx: (Math.random() - 0.5) * 40, vy: -90, g: 0, life: 1.6, kind: 'heart' }); }
+    if (r.hearts) { AU.sfx('heart'); AU.speak(r.regLine, { who: cu.reg, seed: cu.look.seed, mood: 'joy' }); reaction = { cid: cu.cid, text: r.regLine, until: t + 4.5, keep: true }; for (let i = 0; i < 5; i++) parts.push({ x: x + (Math.random() - 0.5) * 60, y: y + 40, vx: (Math.random() - 0.5) * 40, vy: -90, g: 0, life: 1.6, kind: 'heart' }); }
+    else if (cu && r.perfect) { AU.speak('Brilliant! Cheers Chungy!', { who: cu.reg, seed: cu.look.seed, mood: 'joy' }); }
     if (S.day === 1 && S.stats.served === 1) setTimeout(() => tip('combo', 'Lovely! Perfect matches in a row build a combo, and the tips grow with it.'), 900);
     if (r.rec.rarity === 'L') { flash(); toast(`You sold a <b>legendary</b> record for ${money(r.price + r.tip)}!`, 'gold'); }
   }
@@ -279,6 +280,13 @@
     const it = S.stock.find(x => x.uid === uid); if (!it) return;
     E.setPlaying(S, uid); AU.play(E.recOf(it)); crateSig = '';
     float(984, 360, '♫ ' + D.GENRES[E.recOf(it).genre].name, 'pink');
+  }
+
+  function cycleTurntable() {
+    if (!S || !S.stock.length) return;
+    const ix = S.stock.findIndex(x => x.uid === S.nowPlaying);
+    const next = S.stock[(ix + 1) % S.stock.length];
+    if (next) playRecord(next.uid);
   }
 
   // ---------- HUD ----------
@@ -294,7 +302,7 @@
       ${mode === 'shop' ? '<button class="small ghost" data-a="pause" id="hPause">⏸ Pause</button>' : ''}
       <button class="small ghost" data-a="mute" id="hMute">${AU.muted ? '🔇' : '🔊'}</button>
     </div>
-    ${mode === 'shop' ? `<div class="goals" id="hGoals"></div><div class="np" id="hNp"></div>` : ''}`;
+    ${mode === 'shop' ? `<div class="goals" id="hGoals"></div><div class="np" id="hNp" data-a="turntable" title="Click to spin the next record in your crate"></div>` : ''}`;
     hudEls = { clock: $('#hClock'), cash: $('#hCash'), stars: $('#hStars'), lv: $('#hLv'), xp: $('#hXp'), combo: $('#hCombo'), goals: $('#hGoals'), np: $('#hNp') };
   }
   let goalsSig = '';
@@ -310,35 +318,38 @@
     hudEls.xp.style.width = Math.round(S.xp / E.xpFor(S.level) * 100) + '%';
     if (T && T.combo >= 2) { hudEls.combo.style.display = ''; hudEls.combo.textContent = `🔥 ${T.combo}x combo`; } else hudEls.combo.style.display = 'none';
     if (hudEls.goals) { const sig = JSON.stringify(S.goals.map(g => [g.have, g.done])); if (sig !== goalsSig) { goalsSig = sig; hudEls.goals.innerHTML = '<b>Today\'s goals</b>' + S.goals.map(g => `<div class="${g.done ? 'done' : ''}"><span>${esc(g.text)}</span><span>${g.done ? '✓' : g.id === 'earn' ? money(g.have) : g.have + '/' + g.n}</span></div>`).join(''); } }
-    if (hudEls.np) { const np = S.nowPlaying && S.stock.find(x => x.uid === S.nowPlaying); hudEls.np.innerHTML = np ? `♫ <b>${esc(E.recOf(np).title)}</b><br>${esc(E.recOf(np).artist)}` : 'Turntable empty: tap ▶ on a record'; }
+    if (hudEls.np) { const np = S.nowPlaying && S.stock.find(x => x.uid === S.nowPlaying); hudEls.np.innerHTML = np ? `♫ <b>${esc(E.recOf(np).title)}</b> <span style="opacity:.7">(${D.GENRES[E.recOf(np).genre].name})</span><br>${esc(E.recOf(np).artist)} · <span style="color:var(--teal)">↻ next</span>` : 'Turntable empty: tap ▶ on a record'; }
   }
 
   // ---------- the crate (records for sale) ----------
   function renderCrate() {
     if (mode !== 'shop') { if (crate.innerHTML) crate.innerHTML = ''; return; }
     const cu = E.front(S);
-    const hint = S.day <= 2 && cu && cu.state === 'queue' && cu.req;
+    const hint = (S.day <= 2 || E.hasPerk(S, 'guide')) && cu && cu.state === 'queue' && cu.req;
     const sig = [S.stock.map(x => x.uid).join(','), S.nowPlaying, S.wall.join(','), filter, cu ? cu.cid + cu.state : '', hint ? 1 : 0].join('|');
     if (sig === crateSig) return; crateSig = sig;
     const gs = [...new Set(S.stock.map(x => E.recOf(x).genre))];
     const list = S.stock.filter(x => filter === 'all' || E.recOf(x).genre === filter)
       .sort((a, b) => E.recOf(a).genre.localeCompare(E.recOf(b).genre) || E.valueOf(b) - E.valueOf(a));
-    const tiles = list.map(it => {
+    const tiles = list.map((it, idx) => {
       const rec = E.recOf(it), framed = S.wall.includes(it.uid);
-      const good = hint && !framed && E.matchScore(cu.req, rec) >= 0.99;
-      return `<div class="tile r-${rec.rarity} ${S.nowPlaying === it.uid ? 'playing' : ''} ${framed ? 'framed' : ''} ${good ? 'hint' : ''}" data-uid="${it.uid}" title="${esc(rec.title)} by ${esc(rec.artist)}">
+      const sc = cu && cu.state === 'queue' && cu.req && !framed ? E.matchScore(cu.req, rec) : 0;
+      const good = hint && sc >= 0.99;
+      return `<div class="tile r-${rec.rarity} ${S.nowPlaying === it.uid ? 'playing' : ''} ${framed ? 'framed' : ''} ${good ? 'hint' : ''}" data-uid="${it.uid}" title="${esc(rec.title)} by ${esc(rec.artist)} (${D.RARITY[rec.rarity].name}, ${it.grade})">
         <img src="${sleeveURL(rec)}" alt=""><div class="price">${money(E.valueOf(it))}</div>
+        ${idx < 9 ? `<div class="kbd">${idx + 1}</div>` : ''}
         <div class="acts"><span data-play="${it.uid}" title="Play on the turntable">▶</span></div>
         <div class="meta">${genreTag(rec.genre)} <b>${rec.era}</b><br>${rec.moods.map(m => `<span class="mood">${m}</span>`).join('')}</div></div>`;
     }).join('') || '<div class="tile empty">No records!<br>Dig some up<br>tomorrow.</div>';
     crate.innerHTML = `<div class="drawer"><div class="tabs"><span class="lbl">Your crate</span>
       <button class="${filter === 'all' ? 'on' : ''}" data-f="all">All</button>
       ${gs.map(g => `<button class="${filter === g ? 'on' : ''}" data-f="${g}" style="border-color:${D.GENRES[g].col}">${D.GENRES[g].name}</button>`).join('')}
-      <span class="cap">${S.stock.length}/${E.stockCap(S)} records</span></div>
+      <span class="cap">Keys 1–9 offer · T next tune · ${S.stock.length}/${E.stockCap(S)} records</span></div>
       <div class="row">${tiles}</div></div>`;
   }
 
   // ---------- speech bubbles ----------
+  let lastSpokenBubble = '';
   function renderBubbles() {
     if (mode !== 'shop' || !S.today) return;
     const cu = E.front(S);
@@ -349,13 +360,39 @@
     if (sig !== bubbleSig) {
       bubbleSig = sig;
       layer.querySelectorAll('.bubble:not(.chungy), .thief').forEach(n => n.remove());
-      if (cu && (cu.state === 'queue' || cu.state === 'haggle')) layer.appendChild(bubbleFor(cu));
+      if (cu && (cu.state === 'queue' || cu.state === 'haggle')) {
+        layer.appendChild(bubbleFor(cu));
+        const spkKey = cu.cid + ':' + cu.state;
+        if (spkKey !== lastSpokenBubble && cu.state === 'queue' && (!reaction || reaction.cid !== cu.cid)) {
+          lastSpokenBubble = spkKey;
+          AU.speak(cu.text, { who: cu.reg, seed: cu.look.seed, mood: cu.face });
+        }
+      }
       for (const x of S.today.cust) if (x.kind === 'thief' && x.state === 'sneak') { const b = document.createElement('div'); b.className = 'thief'; b.dataset.thief = x.cid; b.textContent = '🚨 STOP THIEF!'; layer.appendChild(b); }
     }
     // keep bubbles over heads
     const b = layer.querySelector('.bubble:not(.chungy)');
     if (b && cu) { const a = actors.get(cu.cid); if (a) { b.style.left = Math.max(170, Math.min(1110, a.x)) + 'px'; b.style.top = (a.y - 238 * ((cu.look.h || 1) * 0.92 + 0.08)) + 'px'; } const p = b.querySelector('.pat i'); if (p) { const k = Math.max(0, cu.patience / cu.maxPat); p.style.width = k * 100 + '%'; p.classList.toggle('low', k < 0.3); } }
     layer.querySelectorAll('.thief').forEach(el => { const a = actors.get(+el.dataset.thief); if (a) { el.style.left = a.x + 'px'; el.style.top = (a.y - 250) + 'px'; } });
+  }
+
+  function cluePills(cu) {
+    if (!cu.req) return '';
+    const tags = [];
+    if (cu.req.id) {
+      const tgt = D.BY_ID[cu.req.id];
+      if (tgt) tags.push(`<span class="ctag g" style="background:${D.GENRES[tgt.genre].col}">🎯 ${esc(tgt.genre.toUpperCase())}</span>`);
+    } else {
+      if (cu.req.genre) {
+        const g = D.GENRES[cu.req.genre];
+        tags.push(`<span class="ctag g" style="background:${g.col}">🎵 ${esc(g.name)}</span>`);
+      } else if (cu.genre) {
+        tags.push(`<span class="ctag" title="Look at their outfit!">👕 Looks like ${esc(D.GENRES[cu.genre].name)}?</span>`);
+      }
+      if (cu.req.mood) tags.push(`<span class="ctag">✨ ${esc(cu.req.mood)}</span>`);
+      if (cu.req.era) tags.push(`<span class="ctag">📅 ${esc(cu.req.era)}</span>`);
+    }
+    return tags.length ? `<div class="clues">${tags.join('')}</div>` : '';
   }
 
   function bubbleFor(cu) {
@@ -372,7 +409,7 @@
       d.innerHTML = `${who}${rx || '"That\'s the one! I\'ve been after this for years."'}<div style="margin-top:6px">They'll pay <b>${money(cu.haggle.price)}</b>${cu.haggle.tip ? ` + ${money(cu.haggle.tip)} tip` : ''}.</div>
         <div class="btns"><button class="small green" data-a="deal">Deal!</button><button class="small pink" data-a="push">Push for more (risky)</button></div>`;
     } else {
-      d.innerHTML = `${who}${rx}${esc(cu.text)}<div class="btns"><button class="small ghost" data-a="away">Sorry, haven't got one</button></div><div class="pat"><i></i></div>`;
+      d.innerHTML = `${who}${rx}${esc(cu.text)}${cluePills(cu)}<div class="btns"><button class="small ghost" data-a="away">Sorry, haven't got one</button></div><div class="pat"><i></i></div>`;
     }
     return d;
   }
@@ -396,7 +433,7 @@
     const cf = chungy.until > t ? chungy.face : (T && E.front(S) ? 'neutral' : 'happy');
     const ca = chungy.until > t ? chungy.arm : 'idle';
     if (mode !== 'title') A.chungy(c, 1090, 556, 1.02, { face: cf === 'talk' ? 'talk' : cf, arm: ca, t, blink: (t % 4) < 0.12, groove: AU.playing() ? beat : 0 });
-    A.counter(c, { t, ang, npCol: np ? D.GENRES[E.recOf(np).genre].col : null, cash: S ? S.cash : 0 });
+    A.counter(c, { t, ang, npCol: np ? D.GENRES[E.recOf(np).genre].col : null, cash: S ? S.cash : 0, cake: S && E.hasPerk(S, 'cake') });
     if (np) { // floating notes from the turntable
       if (Math.random() < 0.05) parts.push({ x: 984 + (Math.random() - 0.5) * 40, y: 400, vx: (Math.random() - 0.5) * 30, vy: -60, g: 0, life: 2, kind: 'note', col: D.GENRES[E.recOf(np).genre].col });
     }
@@ -407,7 +444,7 @@
         c.globalAlpha = a.alpha;
         let face = cu.face, arm = 'idle';
         if (cu.state === 'browse') { const ph = (t + cu.cid * 1.7) % 6; arm = a.moving ? 'idle' : ph < 3.5 ? 'dig' : ph < 4.6 ? 'think' : 'idle'; face = ph < 3.5 ? 'neutral' : 'happy'; }
-        if (E.front(S) === cu && cu.state === 'queue' && cu.st < 1.2) face = 'talk';
+        if (E.front(S) === cu && cu.state === 'queue' && cu.st < 1.5) face = 'talk';
         if (cu.state === 'haggle') { face = 'wow'; arm = 'idle'; }
         if (a.hold) arm = 'hold';
         if (a.cheer > 0) { arm = 'cheer'; face = 'joy'; }
@@ -472,11 +509,12 @@
     if (lastSum.rentDue) showGrimsby(); else showEvening('today');
   }
 
-  const GRIMSBY = { skin: '#f0c9a8', hair: 'bald', hairCol: '#9a9a9a', top: 'suit', col: '#3a3a44', legs: '#2a2a30', acc: 'glasses', build: 1.25, h: 1.06, seed: 9 };
+  const GRIMSBY = { skin: '#f0c9a8', hair: 'bald', hairCol: '#9a9a9a', top: 'suit', col: '#3a3a44', legs: '#2a2a30', acc: 'glasses', build: 1.25, h: 1.06, seed: 9, eyes: '#4e5d6c' };
   function showGrimsby() {
     mode = 'rent';
     const due = D.rentFor(E.week(S));
     const can = S.cash >= due;
+    AU.speak(`Evening Chungy. That will be ${due} pounds for the week.`, { who: 'grimsby', mood: can ? 'neutral' : 'cross' });
     screen.innerHTML = `<div class="panel"><div class="card grimsby"><div id="grimPic"></div><div style="max-width:440px">
       <h2>Mr Grimsby, the landlord</h2>
       <p style="font-size:18px">"Evening, Chungy. Sunday again. That'll be <b>${money(due)}</b> for the week. Rent goes up next week, as always."</p>
@@ -509,14 +547,15 @@
           ${cost == null ? '<button class="small ghost" disabled>Maxed out</button>' : `<button class="small ${S.cash >= cost ? 'green' : ''}" data-up="${u.id}" ${S.cash >= cost ? '' : 'disabled'}>Buy for ${money(cost)}</button>`}</div>`;
       }).join('')}</div>`;
     } else if (tab === 'book') {
-      body = '<div class="book">' + D.GENRE_IDS.map(g => {
+      const curPlay = AU.playing();
+      body = '<p style="margin:0 0 6px;font-size:13px;color:#5b3b4b">Tap any discovered record to spin it on the jukebox! Complete all 14 in a genre for a <b>£150</b> bonus.</p><div class="book">' + D.GENRE_IDS.map(g => {
         const recs = D.CATALOGUE.filter(r => r.genre === g), have = recs.filter(r => S.found[r.id]).length;
         const locked = D.GENRES[g].unlock > S.level;
         return `<div class="hdr"><span>${genreTag(g)} ${D.GENRES[g].name}${locked ? ` (unlocks at level ${D.GENRES[g].unlock})` : ''}</span><span>${have}/${recs.length}${S.bookDone && S.bookDone[g] ? ' ✓' : ''}</span></div>` +
-          recs.map(r => S.found[r.id] ? `<div class="slot r-${r.rarity}" title="${esc(r.title)} by ${esc(r.artist)} (${D.RARITY[r.rarity].name})"><img src="${sleeveURL(r)}" alt=""></div>` : `<div class="slot r-${r.rarity}">${r.rarity === 'L' ? '★' : '?'}</div>`).join('');
+          recs.map(r => S.found[r.id] ? `<div class="slot found r-${r.rarity} ${curPlay && curPlay.id === r.id ? 'playing' : ''}" data-preview="${r.id}" title="Tap to play: ${esc(r.title)} by ${esc(r.artist)} (${D.RARITY[r.rarity].name})"><img src="${sleeveURL(r)}" alt=""></div>` : `<div class="slot r-${r.rarity}">${r.rarity === 'L' ? '★' : '?'}</div>`).join('');
       }).join('') + '</div>';
     } else if (tab === 'regs') {
-      body = `<div class="regs">${D.REGULARS.map(R => { const st = S.regs[R.id], locked = R.unlock > S.level; return `<div class="reg ${locked ? 'locked' : ''}" data-reg="${R.id}"><div class="pic"></div><b>${esc(R.name)}</b><div>Loves ${R.likes.map(g => D.GENRES[g].name).join(' & ')}</div><div class="hearts">${'♥'.repeat(st.hearts)}${'♡'.repeat(5 - st.hearts)}</div>${locked ? `<div>Turns up at level ${R.unlock}</div>` : st.hearts >= 5 ? `<div class="perk">✨ ${esc(R.perk.name)}: ${esc(R.perk.desc)}</div>` : `<div style="color:#7a3c5c">Perk at 5 hearts: ${esc(R.perk.name)}</div>`}${st.hearts ? `<div style="font-style:italic;margin-top:4px">"${esc(R.lines[st.hearts - 1])}"</div>` : ''}</div>`; }).join('')}</div>`;
+      body = `<div class="regs">${D.REGULARS.map(R => { const st = S.regs[R.id], locked = R.unlock > S.level; return `<div class="reg ${locked ? 'locked' : ''}" data-reg="${R.id}" title="Click to hear ${esc(R.name)}"><div class="pic"></div><b>${esc(R.name)}</b><div>Loves ${R.likes.map(g => D.GENRES[g].name).join(' & ')}</div><div class="hearts">${'♥'.repeat(st.hearts)}${'♡'.repeat(5 - st.hearts)}</div>${locked ? `<div>Turns up at level ${R.unlock}</div>` : st.hearts >= 5 ? `<div class="perk">✨ ${esc(R.perk.name)}: ${esc(R.perk.desc)}</div>` : `<div style="color:#7a3c5c">Perk at 5 hearts: ${esc(R.perk.name)}</div>`}${st.hearts ? `<div style="font-style:italic;margin-top:4px">"${esc(R.lines[st.hearts - 1])}"</div>` : ''}</div>`; }).join('')}</div>`;
     } else if (tab === 'wall') {
       const slots = E.wallSlots(S);
       const list = S.stock.slice().sort((a, b) => E.valueOf(b) - E.valueOf(a));
@@ -550,9 +589,23 @@
   // ---------- input ----------
   document.addEventListener('click', ev => {
     AU.init();
-    const el = ev.target.closest('[data-a],[data-lot],[data-uid],[data-play],[data-f],[data-tab],[data-up],[data-frame],[data-window],[data-thief],.flip');
+    const el = ev.target.closest('[data-a],[data-lot],[data-uid],[data-play],[data-preview],[data-reg],[data-f],[data-tab],[data-up],[data-frame],[data-window],[data-thief],.flip');
     if (!el) return;
     if (el.dataset.play) { ev.stopPropagation(); playRecord(+el.dataset.play); return; }
+    if (el.dataset.preview) {
+      const rec = D.BY_ID[el.dataset.preview];
+      if (rec) { AU.duck(false); AU.play(rec); toast(`♫ Playing <b>${esc(rec.title)}</b> by ${esc(rec.artist)}`, 'pink'); showEvening('book'); }
+      return;
+    }
+    if (el.dataset.reg && mode === 'evening') {
+      const R = D.REGULARS.find(r => r.id === el.dataset.reg);
+      if (R && R.unlock <= S.level) {
+        const line = R.lines[Math.max(0, (S.regs[R.id].hearts || 1) - 1)];
+        AU.speak(line, { who: R.id, mood: 'happy' });
+        toast(`<b>${esc(R.name)}:</b> "${esc(line)}"`, 'pink');
+      }
+      return;
+    }
     if (el.classList.contains('flip')) { flipCard(el); return; }
     if (el.dataset.thief) { const r = E.catchThief(S, +el.dataset.thief); handle(r.ev); bubbleSig = ''; return; }
     if (el.dataset.uid) { tapRecord(+el.dataset.uid); return; }
@@ -575,10 +628,11 @@
       case 'skipdig': S.phase = 'dig'; openShop(); break;
       case 'flipall': screen.querySelectorAll('.flip:not(.open)').forEach((f, i) => setTimeout(() => flipCard(f), i * 140)); break;
       case 'open': openShop(); break;
+      case 'turntable': cycleTurntable(); break;
       case 'away': { const r = E.sendAway(S); handle(r); AU.sfx('click'); bubbleSig = ''; break; }
       case 'buyin': { const r = E.buyFromSeller(S); if (!r.ok) toast(r.why === 'full' ? 'Your racks are full! Buy an extra rack tonight.' : 'Not enough cash in the till.', 'red'); else { handle(r.ev); AU.sfx('cash'); float(850, 300, r.isNew ? 'NEW FIND!' : 'Bought!', 'pink'); if ('RL'.includes(E.recOf(r.it).rarity)) AU.sfx('rare'); } bubbleSig = ''; crateSig = ''; break; }
       case 'deal': { const cu = E.front(S), a = cu && actors.get(cu.cid); const r = E.haggle(S, false); if (r) { handle(r.ev); saleDone(r, a, cu); } bubbleSig = ''; crateSig = ''; break; }
-      case 'push': { const cu = E.front(S); const r = E.haggle(S, true); if (!r) break; handle(r.ev); if (r.up) { AU.sfx('cash'); reaction = { cid: cu.cid, text: r.say, until: t + 3 }; } else { AU.sfx('fail'); toast(esc(r.say), 'red'); } bubbleSig = ''; break; }
+      case 'push': { const cu = E.front(S); const r = E.haggle(S, true); if (!r) break; handle(r.ev); if (r.up) { AU.sfx('cash'); AU.speak(r.say, { who: cu.reg, seed: cu.look.seed, mood: 'cross' }); reaction = { cid: cu.cid, text: r.say, until: t + 3 }; } else { AU.sfx('fail'); AU.speak(r.say, { who: cu.reg, seed: cu.look.seed, mood: 'angry' }); toast(esc(r.say), 'red'); } bubbleSig = ''; break; }
       case 'cat': if (E.petCat(S)) { AU.sfx('meow'); float(cat.x, 470, '♥ purr ♥', 'pink'); toast('Wax the cat calms everyone down.', 'teal'); bubbleSig = ''; } else AU.sfx('meow'); break;
       case 'pause': paused = !paused; $('#hPause').textContent = paused ? '▶ Resume' : '⏸ Pause'; AU.duck(paused); break;
       case 'unpause': paused = false; el.closest('.panel').remove(); break;
@@ -589,9 +643,23 @@
     }
   });
   document.addEventListener('keydown', ev => {
+    if (ev.key === 'm' || ev.key === 'M') { const b = $('#hMute'); if (b) b.click(); return; }
+    if (mode === 'dig' && (ev.key === ' ' || ev.key === 'Enter')) {
+      ev.preventDefault();
+      const openBtn = $('#openBtn');
+      if (openBtn && openBtn.style.display !== 'none') openBtn.click();
+      else { const fa = screen.querySelector('[data-a="flipall"]'); if (fa) fa.click(); }
+      return;
+    }
     if (mode !== 'shop') return;
     if (ev.key === ' ' || ev.key === 'p') { ev.preventDefault(); const b = $('#hPause'); if (b) b.click(); }
+    if (ev.key === 't' || ev.key === 'T') { cycleTurntable(); }
     if (ev.key === 'Escape') { const b = layer.querySelector('[data-a="away"]'); if (b) b.click(); }
+    if (ev.key >= '1' && ev.key <= '9') {
+      const tiles = crate.querySelectorAll('.tile[data-uid]');
+      const tile = tiles[+ev.key - 1];
+      if (tile) tapRecord(+tile.dataset.uid);
+    }
   });
   document.addEventListener('visibilitychange', () => { if (document.hidden && mode === 'shop' && !paused) { const b = $('#hPause'); if (b) b.click(); } });
 
