@@ -318,7 +318,19 @@
     hudEls.xp.style.width = Math.round(S.xp / E.xpFor(S.level) * 100) + '%';
     if (T && T.combo >= 2) { hudEls.combo.style.display = ''; hudEls.combo.textContent = `🔥 ${T.combo}x combo`; } else hudEls.combo.style.display = 'none';
     if (hudEls.goals) { const sig = JSON.stringify(S.goals.map(g => [g.have, g.done])); if (sig !== goalsSig) { goalsSig = sig; hudEls.goals.innerHTML = '<b>Today\'s goals</b>' + S.goals.map(g => `<div class="${g.done ? 'done' : ''}"><span>${esc(g.text)}</span><span>${g.done ? '✓' : g.id === 'earn' ? money(g.have) : g.have + '/' + g.n}</span></div>`).join(''); } }
-    if (hudEls.np) { const np = S.nowPlaying && S.stock.find(x => x.uid === S.nowPlaying); hudEls.np.innerHTML = np ? `♫ <b>${esc(E.recOf(np).title)}</b> <span style="opacity:.7">(${D.GENRES[E.recOf(np).genre].name})</span><br>${esc(E.recOf(np).artist)} · <span style="color:var(--teal)">↻ next</span>` : 'Turntable empty: tap ▶ on a record'; }
+    if (hudEls.np) {
+      const np = S.nowPlaying && S.stock.find(x => x.uid === S.nowPlaying);
+      if (np) {
+        const rec = E.recOf(np), gCol = D.GENRES[rec.genre].col;
+        const bars = Array.from({ length: 8 }, (_, k) => {
+          const h = Math.round(25 + 75 * Math.abs(Math.sin(t * 7.5 + k * 0.85)) * (0.55 + beat * 0.45));
+          return `<i style="height:${h}%;background:${k % 2 ? gCol : 'var(--teal)'}"></i>`;
+        }).join('');
+        hudEls.np.innerHTML = `<div class="np-wrap"><div class="np-disc" style="--gc:${gCol}"><span></span></div><div class="np-info"><b>${esc(rec.title)}</b> <small>(${D.GENRES[rec.genre].name})</small><br>${esc(rec.artist)} · <span class="np-next">↻ next</span></div><div class="np-eq">${bars}</div></div>`;
+      } else {
+        hudEls.np.innerHTML = 'Turntable empty: tap ▶ on a record';
+      }
+    }
   }
 
   // ---------- the crate (records for sale) ----------
@@ -435,7 +447,7 @@
     if (mode !== 'title') A.chungy(c, 1090, 556, 1.02, { face: cf === 'talk' ? 'talk' : cf, arm: ca, t, blink: (t % 4) < 0.12, groove: AU.playing() ? beat : 0 });
     A.counter(c, { t, ang, npCol: np ? D.GENRES[E.recOf(np).genre].col : null, cash: S ? S.cash : 0, cake: S && E.hasPerk(S, 'cake') });
     if (np) { // floating notes from the turntable
-      if (Math.random() < 0.05) parts.push({ x: 984 + (Math.random() - 0.5) * 40, y: 400, vx: (Math.random() - 0.5) * 30, vy: -60, g: 0, life: 2, kind: 'note', col: D.GENRES[E.recOf(np).genre].col });
+      if (Math.random() < 0.065) parts.push({ x: 984 + (Math.random() - 0.5) * 40, y: 400, vx: (Math.random() - 0.5) * 30, vy: -60, g: 0, life: 2, kind: 'note', col: D.GENRES[E.recOf(np).genre].col });
     }
     // people, back to front
     if (T) {
@@ -451,6 +463,9 @@
         if (cu.kind === 'thief' && cu.state === 'sneak') { arm = 'hold'; a.hold = '#c3001b'; }
         if (cu.caught) { arm = 'idle'; face = 'cross'; }
         const groove = cu.vibe && !a.moving && (cu.state === 'browse' || cu.state === 'queue') ? beat : 0;
+        if (cu.vibe && !a.moving && Math.random() < 0.025 && np) {
+          parts.push({ x: a.x + (Math.random() - 0.5) * 24, y: a.y - 210, vx: (Math.random() - 0.5) * 18, vy: -45, g: 0, life: 1.4, kind: 'note', col: D.GENRES[E.recOf(np).genre].col });
+        }
         A.person(c, cu.look, a.x, a.y, 0.95, { walk: a.moving ? a.walk : null, face, arm, holdCol: a.hold, flip: a.flip, t, blink: a.blink > 0, groove });
         c.globalAlpha = 1;
       }

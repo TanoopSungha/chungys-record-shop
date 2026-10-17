@@ -216,3 +216,13 @@ h1, h2, h3 { font-family: var(--display); font-weight: 700; margin: 0; }
 .reg { cursor: pointer; transition: transform .1s; }
 .reg:hover:not(.locked) { transform: translateY(-3px); }
 
+/* ---------- Now Playing spinning vinyl & live equalizer ---------- */
+#hud .np { display: flex; align-items: center; gap: 8px; padding: 6px 10px; width: 266px; }
+.np-wrap { display: flex; align-items: center; gap: 8px; width: 100%; }
+.np-disc { width: 32px; height: 32px; border-radius: 50%; flex: 0 0 32px; background: repeating-radial-gradient(circle, #181016 0 2px, #2b1d28 2px 4px); border: 2px solid #0d070b; position: relative; animation: spin 2.8s linear infinite; box-shadow: 0 2px 6px rgba(0,0,0,.5); }
+.np-disc i { position: absolute; inset: 9px; border-radius: 50%; border: 2px solid #181016; }
+.np-disc i::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: #fff4dc; }
+.np-info { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; line-height: 1.25; }
+.np-eq { display: flex; align-items: flex-end; gap: 2px; height: 22px; flex: 0 0 auto; }
+.np-eq i { display: block; width: 3px; border-radius: 2px; transition: height .08s linear; }
+
