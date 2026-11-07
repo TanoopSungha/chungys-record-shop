@@ -270,15 +270,19 @@
     if (!init() || muted || !text) return;
     opts = opts || {};
     if (voiceTimer) { clearTimeout(voiceTimer); voiceTimer = null; }
-    const clean = String(text).replace(/<[^>]*>/g, '').replace(/[^\w\s?!.,']/g, '').trim();
+    // Any script: letters, digits and punctuation survive (Hindi and Chinese lines get a voice too).
+    const clean = String(text).replace(/<[^>]*>/g, '').replace(/[^\p{L}\p{M}\p{N}\s?!.,'？！。，、।]/gu, '').trim();
     if (!clean) return;
     const prof = profileFor(opts.who, opts.seed, opts.mood);
-    const question = /\?\s*$/.test(clean), exclaim = /!\s*$/.test(clean);
-    // Extract syllable-like chunks from words (capped so long paragraphs stay snappy and pleasant)
-    const words = clean.split(/\s+/).slice(0, 12);
+    const question = /[?？]\s*$/.test(clean), exclaim = /[!！]\s*$/.test(clean);
+    // Extract syllable-like chunks from words (capped so long paragraphs stay snappy and pleasant).
+    // Chinese has no spaces: each character is a syllable. Other non-Latin words get a vowel picked from their letters.
+    const words = clean.replace(/[\u3400-\u9fff]/g, ch => ' ' + ch + ' ').split(/[\s,，。、]+/).filter(Boolean).slice(0, 12);
     const syls = [];
     for (const w of words) {
-      const m = w.toLowerCase().match(/[aeiouy]+/g) || ['a'];
+      const lat = w.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const m = lat.match(/[aeiouy]+/g) || [...w].filter(ch => /\p{L}/u.test(ch)).slice(0, 2).map(ch => 'aeiou'[ch.codePointAt(0) % 5]);
+      if (!m.length) m.push('a');
       for (let i = 0; i < Math.min(2, m.length); i++) {
         const ch = m[i][0] === 'y' ? 'i' : m[i][0];
         syls.push({ v: VOWELS[ch] ? ch : 'a', stress: i === 0, endWord: i === Math.min(2, m.length) - 1 });

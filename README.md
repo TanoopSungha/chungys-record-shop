@@ -17,6 +17,12 @@ Chungy has a tiny record shop on the high street, a landlord who puts the rent u
 
 Plus daily goals, levels that unlock new genres (metal, jazz, house, disco, folk) and regulars, Record Store Day, festivals, rainy days and payday Fridays.
 
+## Languages
+
+The game runs in six languages: **English**, **Français**, **Deutsch**, **Español**, **हिन्दी** (Hindi) and **简体中文** (Simplified Chinese). On first run it picks your system language if it is one of these, otherwise English. To switch, use the language buttons on the title screen, or the 🌐 button in the top bar during a game (it pauses the shop while the menu is open). The switch is instant, no restart, and your choice is remembered.
+
+Record titles, artists, genres and character names stay as they are. All other text lives in `src/i18n/<language>.js`; `npm test` checks that every language has every line.
+
 ## Run it
 
 ```

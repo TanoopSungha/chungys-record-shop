@@ -3,6 +3,17 @@
   'use strict';
   const D = G.CRS_DATA;
   const TAU = Math.PI * 2;
+  // Signs in the shop are translated; the fallback fonts cover Devanagari and Chinese.
+  const L10N = G.CRS_I18N;
+  const FB = L10N ? L10N.FONT_FALLBACK : 'sans-serif';
+  const tx = (k, en) => (L10N && L10N.t(k)) || en;
+  // Draw a short label, shrinking the font until it fits maxW (German and French signs run long).
+  function label(c, s, x, y, maxW, px, pre, fam) {
+    let size = px;
+    c.font = `${pre} ${size}px ${fam}`;
+    while (size > 7 && c.measureText(s).width > maxW) { size -= 1; c.font = `${pre} ${size}px ${fam}`; }
+    c.fillText(s, x, y);
+  }
 
   function rr(c, x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
   function shade(hex, f) {
@@ -305,7 +316,7 @@
       c.beginPath(); c.arc(22, -20, 13, 0, TAU); c.fill(); c.stroke();
       c.strokeStyle = OUT; c.beginPath(); c.moveTo(17, -20); c.lineTo(22, -19); c.moveTo(25, -19); c.lineTo(30, -20); c.stroke();
       // floating zzz
-      c.fillStyle = 'rgba(255,244,220,.75)'; c.font = '700 12px Fredoka, sans-serif';
+      c.fillStyle = 'rgba(255,244,220,.75)'; c.font = `700 12px Fredoka, ${FB}`;
       c.fillText('z', 34, -32 - ((t * 12) % 14)); c.fillText('Z', 42, -40 - ((t * 12 + 7) % 14));
       c.restore(); return;
     }
@@ -354,7 +365,7 @@
       case 'punk': { for (let i = 0; i < 7; i++) { c.save(); c.translate(r() * S, r() * S); c.rotate(r() - 0.5); c.fillStyle = P(); c.fillRect(-S * 0.25, -S * 0.12, S * 0.5, S * 0.24); c.restore(); } c.strokeStyle = '#111'; c.lineWidth = S * 0.03; c.beginPath(); for (let i = 0; i < 5; i++) c.lineTo(r() * S, r() * S); c.stroke(); break; }
       case 'metal': { c.fillStyle = B; c.beginPath(); c.moveTo(S * 0.5, S * 0.08); for (let i = 0; i < 10; i++) c.lineTo(S * (0.1 + r() * 0.8), S * (0.2 + i * 0.07)); c.lineTo(S * 0.5, S * 0.9); c.fill(); c.strokeStyle = A; c.lineWidth = 2; for (let i = 0; i < 9; i++) { c.beginPath(); c.moveTo(S / 2, S / 2); c.lineTo(S / 2 + Math.cos(i) * S, S / 2 + Math.sin(i * 1.7) * S); c.stroke(); } break; }
       case 'soul': { const gr = c.createLinearGradient(0, 0, 0, S); gr.addColorStop(0, B); gr.addColorStop(1, A); c.fillStyle = gr; c.fillRect(0, 0, S, S); c.fillStyle = '#ffe9b0'; c.beginPath(); c.arc(S * 0.5, S * 0.58, S * 0.28, 0, TAU); c.fill(); c.fillStyle = shade(B, -0.5); c.beginPath(); c.arc(S * 0.5, S * 0.42, S * 0.11, 0, TAU); c.fill(); rr(c, S * 0.36, S * 0.52, S * 0.28, S * 0.5, S * 0.1); c.fill(); break; }
-      case 'jazz': { for (let i = 0; i < 4; i++) { c.fillStyle = P(); c.fillRect(r() * S * 0.6, r() * S * 0.6, S * (0.15 + r() * 0.5), S * (0.08 + r() * 0.3)); } c.fillStyle = bg === '#f4efe1' ? '#1f2b5c' : '#f4efe1'; c.font = `900 ${S * 0.3}px Georgia, serif`; c.fillText(rec.artist.split(' ').pop().slice(0, 5).toUpperCase(), S * 0.06, S * 0.92); break; }
+      case 'jazz': { for (let i = 0; i < 4; i++) { c.fillStyle = P(); c.fillRect(r() * S * 0.6, r() * S * 0.6, S * (0.15 + r() * 0.5), S * (0.08 + r() * 0.3)); } c.fillStyle = bg === '#f4efe1' ? '#1f2b5c' : '#f4efe1'; c.font = `900 ${S * 0.3}px Georgia, ${FB}`; c.fillText(rec.artist.split(' ').pop().slice(0, 5).toUpperCase(), S * 0.06, S * 0.92); break; }
       case 'hiphop': { // graffiti blobs behind a big boombox
         for (let i = 0; i < 8; i++) { c.fillStyle = P(); c.beginPath(); c.arc(r() * S, r() * S, S * (0.08 + r() * 0.2), 0, TAU); c.fill(); }
         c.strokeStyle = '#1b1820'; c.lineWidth = S * 0.035; c.beginPath(); c.moveTo(S * 0.3, S * 0.42); c.lineTo(S * 0.36, S * 0.3); c.lineTo(S * 0.64, S * 0.3); c.lineTo(S * 0.7, S * 0.42); c.stroke();
@@ -374,9 +385,9 @@
     const vg = c.createRadialGradient(S / 2, S / 2, S * 0.3, S / 2, S / 2, S * 0.75); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.28)'); c.fillStyle = vg; c.fillRect(0, 0, S, S);
     // title band
     c.fillStyle = 'rgba(0,0,0,.55)'; c.fillRect(0, 0, S, S * 0.2);
-    c.fillStyle = '#fff'; c.font = `700 ${Math.round(S * 0.075)}px Fredoka, "Trebuchet MS", sans-serif`; c.textBaseline = 'top';
+    c.fillStyle = '#fff'; c.font = `700 ${Math.round(S * 0.075)}px Fredoka, "Trebuchet MS", ${FB}`; c.textBaseline = 'top';
     fitText(c, rec.artist.toUpperCase(), S * 0.05, S * 0.02, S * 0.9);
-    c.font = `${Math.round(S * 0.065)}px Fredoka, "Trebuchet MS", sans-serif`; c.fillStyle = '#ffe9b0';
+    c.font = `${Math.round(S * 0.065)}px Fredoka, "Trebuchet MS", ${FB}`; c.fillStyle = '#ffe9b0';
     fitText(c, rec.title, S * 0.05, S * 0.1, S * 0.9);
     // wear on cheaper records
     c.strokeStyle = 'rgba(255,255,255,.08)'; c.lineWidth = 1; c.beginPath(); c.arc(S / 2, S / 2, S * 0.36, 0, TAU); c.stroke();
@@ -406,7 +417,7 @@
     const words = rec.artist.replace(/^(The|DJ|MC|Lil'|Big|Mr\.|Miss|Lady|Sir|King|Lord|Sister|Brother|Kid) /, '').split(' ');
     const ini = words.map(w => w[0]).join('').slice(0, 2).toUpperCase();
     c.save(); c.translate(S * 0.5, S * 0.66); c.rotate(-0.08 + r() * 0.16);
-    c.font = `900 ${Math.round(S * 0.58)}px "Luckiest Guy", Fredoka, Impact, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.font = `900 ${Math.round(S * 0.58)}px "Luckiest Guy", Fredoka, Impact, ${FB}`; c.textAlign = 'center'; c.textBaseline = 'middle';
     c.lineWidth = S * 0.035; c.strokeStyle = '#1b1820'; c.strokeText(ini, 0, 0); c.fillStyle = '#f4efe1'; c.fillText(ini, 0, 0);
     c.restore();
     c.fillStyle = '#1b1820'; for (let i = 0; i < 5; i++) c.fillRect(S * 0.06 + i * S * 0.05, S * 0.9, S * 0.03, S * 0.05);
@@ -448,18 +459,18 @@
     c.strokeStyle = 'rgba(0,0,0,.25)'; c.lineWidth = 3; c.strokeRect(288, 300, dw - 16, 130);
     c.fillStyle = 'rgba(180,220,255,.25)'; c.fillRect(292, 134, Math.max(0, dw - 24), 150);
     c.fillStyle = 'rgba(255,255,255,.18)'; c.beginPath(); c.moveTo(296, 140); c.lineTo(296 + Math.max(0, dw - 50) * 0.5, 140); c.lineTo(296, 220); c.fill();
-    c.fillStyle = '#f4efe1'; c.font = '700 13px Fredoka, "Trebuchet MS", sans-serif'; c.textAlign = 'center';
-    if (open < 0.3) { rr(c, 296, 296, 64, 26, 4); c.fill(); c.fillStyle = st.open ? '#2fb35a' : '#d12d2d'; c.fillText(st.open ? 'OPEN' : 'CLOSED', 328, 314); c.fillStyle = '#ffd34d'; c.beginPath(); c.arc(366, 290, 5, 0, TAU); c.fill(); }
+    c.fillStyle = '#f4efe1'; c.font = `700 13px Fredoka, "Trebuchet MS", ${FB}`; c.textAlign = 'center';
+    if (open < 0.3) { rr(c, 296, 296, 64, 26, 4); c.fill(); c.fillStyle = st.open ? '#2fb35a' : '#d12d2d'; label(c, st.open ? tx('sign.open', 'OPEN') : tx('sign.closed', 'CLOSED'), 328, 314, 58, 13, '700', `Fredoka, "Trebuchet MS", ${FB}`); c.fillStyle = '#ffd34d'; c.beginPath(); c.arc(366, 290, 5, 0, TAU); c.fill(); }
     // doormat
     c.fillStyle = '#7a5a3a'; c.beginPath(); c.moveTo(276, 446); c.lineTo(382, 446); c.lineTo(392, 470); c.lineTo(266, 470); c.closePath(); c.fill();
-    c.fillStyle = '#e9b44c'; c.font = '700 11px Fredoka, sans-serif'; c.fillText('HELLO', 329, 462);
+    c.fillStyle = '#e9b44c'; label(c, tx('sign.hello', 'HELLO'), 329, 462, 96, 11, '700', `Fredoka, ${FB}`);
     const bell = st.bell > 0 ? Math.sin(t * 40) * st.bell * 0.6 : 0;
     c.save(); c.translate(328, 112); c.rotate(bell); c.fillStyle = '#ffd34d'; c.strokeStyle = OUT; c.lineWidth = 2; c.beginPath(); c.moveTo(-10, 16); c.quadraticCurveTo(-10, 2, 0, 2); c.quadraticCurveTo(10, 2, 10, 16); c.closePath(); c.fill(); c.stroke(); c.restore();
 
     // shop sign over the back wall
     c.textAlign = 'center';
     rr(c, 450, 64, 400, 54, 12); c.fillStyle = '#1e1020'; c.fill();
-    c.font = '36px "Luckiest Guy", Fredoka, "Trebuchet MS", sans-serif';
+    c.font = `36px "Luckiest Guy", Fredoka, "Trebuchet MS", ${FB}`;
     const glow = st.up.neon ? 0.75 + Math.sin(t * 3) * 0.08 + (Math.random() < 0.01 ? -0.4 : 0) : 0;
     c.shadowColor = '#ff5fa2'; c.shadowBlur = glow ? 18 : 0; c.fillStyle = glow ? `rgba(255,120,190,${glow + 0.25})` : '#f2a93b';
     c.fillText('CHUNGY\'S RECORDS', 650, 106); c.shadowBlur = 0;
@@ -474,17 +485,17 @@
       c.fillStyle = '#c98b3c'; c.fillRect(fx - 6, fy - 6, 84, 84);
       c.fillStyle = '#2a1a24'; c.fillRect(fx, fy, 72, 72);
       if (frames[i]) { c.drawImage(sleeveCanvas(frames[i], 160), fx + 2, fy + 2, 68, 68); if (frames[i].rarity === 'L') sparkle(c, fx + 36, fy + 36, 40, t); }
-      else { c.fillStyle = 'rgba(255,255,255,.18)'; c.font = '12px sans-serif'; c.fillText('empty', fx + 36, fy + 40); }
+      else { c.fillStyle = 'rgba(255,255,255,.18)'; label(c, tx('sign.empty', 'empty'), fx + 36, fy + 40, 66, 12, '400', FB); }
     }
     if (!st.wallSlots) { // posters
-      poster(c, 912, 96, '#2f9bff', 'LIVE!', t); poster(c, 1030, 110, '#ffcf3f', 'VINYL', t); poster(c, 1150, 92, '#2fb35a', 'DUB', t);
+      poster(c, 912, 96, '#2f9bff', tx('sign.live', 'LIVE!'), t); poster(c, 1030, 110, '#ffcf3f', tx('sign.vinyl', 'VINYL'), t); poster(c, 1150, 92, '#2fb35a', tx('sign.dub', 'DUB'), t);
     }
     // speakers
     if (st.up.speakers) for (const sx of [400, 1236]) speaker(c, sx, 150, st.up.speakers, st.beat);
     // listening booth
     if (st.up.booth) {
       c.fillStyle = '#3b2a4a'; rr(c, 120, 330, 130, 120, 8); c.fill(); c.strokeStyle = OUT; c.lineWidth = 3; c.stroke();
-      c.fillStyle = '#f2a93b'; c.font = '700 14px Fredoka, "Trebuchet MS"'; c.fillText('LISTEN', 185, 352);
+      c.fillStyle = '#f2a93b'; label(c, tx('sign.listen', 'LISTEN'), 185, 352, 120, 14, '700', `Fredoka, "Trebuchet MS", ${FB}`);
       c.strokeStyle = '#222'; c.lineWidth = 5; c.beginPath(); c.arc(185, 396, 18, Math.PI, TAU); c.stroke(); c.fillStyle = '#e23b3b'; rr(c, 163, 392, 10, 16, 4); c.fill(); rr(c, 197, 392, 10, 16, 4); c.fill();
     }
     // coffee corner
@@ -517,7 +528,7 @@
     c.strokeStyle = 'rgba(0,0,0,.22)'; c.lineWidth = 2; for (const yy of [22, 40]) { c.beginPath(); c.moveTo(x + 4, y + yy); c.lineTo(x + 96, y + yy); c.stroke(); }
     c.fillStyle = 'rgba(255,255,255,.12)'; c.fillRect(x + 4, y + 9, 92, 3);
     // little genre card stuck on the front
-    if (recs[0]) { const gn = D.GENRES[recs[0].genre]; c.fillStyle = '#f4efe1'; c.save(); c.translate(x + 50, y + 46); c.rotate(-0.04); rr(c, -26, -8, 52, 16, 3); c.fill(); c.fillStyle = gn.col; c.font = '700 11px Fredoka, sans-serif'; c.textAlign = 'center'; c.fillText(gn.name.toUpperCase(), 0, 4); c.restore(); }
+    if (recs[0]) { const gn = D.GENRES[recs[0].genre]; c.fillStyle = '#f4efe1'; c.save(); c.translate(x + 50, y + 46); c.rotate(-0.04); rr(c, -26, -8, 52, 16, 3); c.fill(); c.fillStyle = gn.col; c.font = `700 11px Fredoka, ${FB}`; c.textAlign = 'center'; c.fillText(gn.name.toUpperCase(), 0, 4); c.restore(); }
   }
 
   // The static room: wallpaper, wainscoting and a perspective-tiled floor with a rug. Drawn once and reused.
@@ -662,7 +673,7 @@
   function poster(c, x, y, col, txt, t) {
     c.save(); c.translate(x + 45, y + 60); c.rotate(Math.sin(x) * 0.06);
     c.fillStyle = col; c.fillRect(-45, -60, 90, 120); c.fillStyle = '#1b1820'; c.beginPath(); c.arc(0, -8, 30, 0, TAU); c.fill(); c.fillStyle = col; c.beginPath(); c.arc(0, -8, 9, 0, TAU); c.fill();
-    c.fillStyle = '#fff'; c.font = '900 18px Fredoka, "Trebuchet MS"'; c.textAlign = 'center'; c.fillText(txt, 0, 46); c.restore();
+    c.fillStyle = '#fff'; c.textAlign = 'center'; label(c, txt, 0, 46, 84, 18, '900', `Fredoka, "Trebuchet MS", ${FB}`); c.restore();
   }
 
   function speaker(c, x, y, lvl, beat) {
@@ -694,7 +705,7 @@
     c.strokeStyle = '#2a1a24'; c.lineWidth = 10; c.strokeRect(x, y, w, h);
     c.fillStyle = 'rgba(255,255,255,.08)'; c.beginPath(); c.moveTo(x + 20, y); c.lineTo(x + 70, y); c.lineTo(x + 10, y + h); c.lineTo(x - 40, y + h); c.fill();
     if (st.windowRec) { c.drawImage(sleeveCanvas(st.windowRec, 160), x + w / 2 - 40, y + h - 96, 80, 80); }
-    if (st.up.neon) { c.save(); c.shadowColor = '#39f0d0'; c.shadowBlur = 14; c.strokeStyle = '#7ff7e4'; c.lineWidth = 4; c.beginPath(); c.arc(x + 60, y + 50, 26, 0, TAU); c.stroke(); c.beginPath(); c.arc(x + 60, y + 50, 7, 0, TAU); c.stroke(); c.font = '900 22px Fredoka, "Trebuchet MS"'; c.fillStyle = '#ff9fd0'; c.shadowColor = '#ff5fa2'; c.fillText('VINYL', x + 150, y + 58); c.restore(); }
+    if (st.up.neon) { c.save(); c.shadowColor = '#39f0d0'; c.shadowBlur = 14; c.strokeStyle = '#7ff7e4'; c.lineWidth = 4; c.beginPath(); c.arc(x + 60, y + 50, 26, 0, TAU); c.stroke(); c.beginPath(); c.arc(x + 60, y + 50, 7, 0, TAU); c.stroke(); c.fillStyle = '#ff9fd0'; c.shadowColor = '#ff5fa2'; label(c, tx('sign.vinyl', 'VINYL'), x + 150, y + 58, 120, 22, '900', `Fredoka, "Trebuchet MS", ${FB}`); c.restore(); }
     c.fillStyle = '#3b1f33'; c.fillRect(x - 10, y + h + 5, w + 20, 70);
   }
 

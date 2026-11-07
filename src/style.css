@@ -6,8 +6,10 @@
 :root {
   --ink: #2a1a24; --cream: #fff4dc; --paper: #f7e7c6; --plum: #3b1f33; --plum2: #5a2e4f;
   --mustard: #f2a93b; --pink: #ff5fa2; --teal: #39d0b8; --green: #2fb35a; --red: #e5483b; --blue: #2f9bff;
-  --display: "Fredoka", "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif; --logo: "Luckiest Guy", "Fredoka", Impact, sans-serif;
-  --body: "Fredoka", "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  /* Fredoka and Luckiest Guy only carry Latin letters: Hindi and Chinese fall through to the fallback stack. */
+  --fallback: "Noto Sans Devanagari", "Nirmala UI", "Kohinoor Devanagari", "Noto Sans SC", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
+  --display: "Fredoka", "Arial Rounded MT Bold", "Trebuchet MS", var(--fallback); --logo: "Luckiest Guy", "Fredoka", Impact, var(--fallback);
+  --body: "Fredoka", "Trebuchet MS", "Segoe UI", var(--fallback);
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: #1a0f18; color: var(--ink); font-family: var(--body); overflow: hidden; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
@@ -58,7 +60,9 @@ button.small { font-size: 14px; padding: 4px 10px; border-radius: 10px; box-shad
 .tile { position: relative; flex: 0 0 104px; height: 120px; border-radius: 10px; border: 3px solid var(--ink); background: var(--cream); cursor: pointer; overflow: hidden; transition: transform .1s; box-shadow: 0 3px 0 var(--ink); }
 .tile:hover { transform: translateY(-4px); }
 .tile img { width: 100%; height: 74px; object-fit: cover; object-position: top; display: block; border-bottom: 2px solid var(--ink); }
-.tile .meta { padding: 2px 5px; font-size: 11px; line-height: 1.25; }
+.tile .meta { padding: 2px 5px; font-size: 11px; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile .meta .moods { display: flex; gap: 2px; overflow: hidden; }
+.tile .meta .moods .mood { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; margin-right: 0; }
 .tile .meta b { font-size: 11px; }
 .tile .g { display: inline-block; border-radius: 6px; padding: 0 4px; color: #fff; font-weight: 700; font-size: 10px; }
 .tile .price { position: absolute; top: 3px; right: 3px; background: rgba(42,26,36,.85); color: #c9f5b0; font-weight: 700; font-size: 12px; border-radius: 6px; padding: 0 5px; }
@@ -226,3 +230,17 @@ h1, h2, h3 { font-family: var(--display); font-weight: 700; margin: 0; }
 .np-eq { display: flex; align-items: flex-end; gap: 2px; height: 22px; flex: 0 0 auto; }
 .np-eq i { display: block; width: 3px; border-radius: 2px; transition: height .08s linear; }
 
+
+/* ---------- language picker ---------- */
+.langpick { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center; max-width: 760px; }
+.langpick .lbl { font-family: var(--display); color: var(--cream); font-size: 15px; text-shadow: 0 2px 0 var(--ink); margin-right: 4px; }
+.langpick button { font-size: 15px; padding: 4px 11px; min-height: 34px; }
+.langpick button.on { background: var(--teal); }
+.langpick.title { margin-top: 2px; }
+.langmenu { background: rgba(26,15,24,.55); }
+.langmenu .card { display: flex; flex-direction: column; gap: 14px; align-items: center; max-width: 820px; }
+.langmenu .langpick .lbl { color: var(--ink); text-shadow: none; }
+#hud #hLang { pointer-events: auto; white-space: nowrap; }
+/* Longer languages: let buttons and headings wrap instead of spilling out. */
+button { overflow-wrap: anywhere; }
+:lang(hi) body, :lang(hi) button { line-height: 1.35; }

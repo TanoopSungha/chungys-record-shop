@@ -1,13 +1,38 @@
 // Chungy's Record Shop: screens, the live shop floor and input.
 (function () {
   'use strict';
-  const D = window.CRS_DATA, E = window.CRS, A = window.CRS_ART, AU = window.CRS_AUDIO;
+  const D = window.CRS_DATA, E = window.CRS, A = window.CRS_ART, AU = window.CRS_AUDIO, I = window.CRS_I18N;
+  const tr = I.t, tn = I.tn, say$ = I.resolve;
   const $ = s => document.querySelector(s);
   const stage = $('#stage'), cv = $('#scene'), c = cv.getContext('2d');
   const layer = $('#layer'), hud = $('#hud'), crate = $('#crate'), screen = $('#screen'), toasts = $('#toasts');
   const W = 1280, H = 720;
   const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
-  const money = n => '£' + Math.round(n).toLocaleString('en-GB');
+  const money = n => I.money(n);
+  const num = n => I.num(n);
+  // ---------- names of things in the current language ----------
+  const gName = g => D.GENRES[g].name; // genre names stay as they are (Rock, Hip-Hop...)
+  const rarName = r => tr('rarity.' + r);
+  const eraTag = e => tr('eraTag.' + e);
+  const moodTag = m => tr('moodTag.' + m);
+  const lotName = l => tr(`lot.${l.id}.name`), lotBlurb = l => tr(`lot.${l.id}.blurb`);
+  const upName = u => tr(`up.${u.id}.name`), upDesc = u => tr(`up.${u.id}.desc`);
+  const perkName = p => tr(`perk.${p.id}.name`), perkDesc = p => tr(`perk.${p.id}.desc`);
+  const regLine = (R, i) => tr(`reg.${R.id}.${i}`);
+  const dayName = (wd, short) => tr((short ? 'dayShort.' : 'day.') + wd);
+  const evName = ev => tr(`event.${ev.id}.name`, { genre: ev.genre ? gName(ev.genre) : '' });
+  const evDesc = ev => tr(`event.${ev.id}.desc`, { genre: ev.genre ? gName(ev.genre) : '' });
+  const custName = cu => cu.nameKey ? tr(cu.nameKey) : cu.name;
+  const custSay = cu => say$(cu.say);
+  function goalText(g) {
+    switch (g.id) {
+      case 'earn': return tr('goal.earn', { money: money(g.n) });
+      case 'genre': return tr('goal.genre', { n: num(g.n), genre: g.genre ? gName(g.genre) : '' });
+      case 'regular': case 'buyin': return tn('goal.' + g.id, g.n);
+      case 'rare': return tr('goal.rare');
+      default: return tr('goal.' + g.id, { n: num(g.n) });
+    }
+  }
   const stars = r => '★'.repeat(Math.round(r)) + '☆'.repeat(5 - Math.round(r));
 
   // Canvas text needs the bundled fonts loaded before record sleeves are painted.
@@ -39,7 +64,7 @@
     else A.person(pc, look, w / 2, h - 6, h / 270, { face: face || 'happy', t: 0 });
     return p;
   }
-  function genreTag(g) { return `<span class="g" style="background:${D.GENRES[g].col}">${D.GENRES[g].name}</span>`; }
+  function genreTag(g) { return `<span class="g" style="background:${D.GENRES[g].col}">${esc(gName(g))}</span>`; }
 
   // ---------- intro: the same Snoopster video as the other games ----------
   let introDone = null, introTimer = null;
@@ -51,7 +76,7 @@
   }
   function playIntro(done) {
     introDone = done;
-    $('#intro').innerHTML = '<div class="intro"><video src="assets/intro.mp4" autoplay playsinline></video><div class="skip">Press any key or tap to skip</div></div>';
+    $('#intro').innerHTML = `<div class="intro"><video src="assets/intro.mp4" autoplay playsinline></video><div class="skip">${esc(tr('intro.skip'))}</div></div>`;
     const v = $('#intro video');
     v.addEventListener('ended', endIntro); v.addEventListener('error', endIntro);
     const p = v.play(); if (p && p.catch) p.catch(() => { v.muted = true; v.play().catch(endIntro); });
@@ -64,30 +89,47 @@
     mode = 'title'; hud.innerHTML = ''; crate.innerHTML = ''; layer.innerHTML = ''; actors.clear();
     const saved = E.load();
     screen.innerHTML = `<div class="panel">
-      <div class="logo"><div class="t1">CHUNGY'S</div><div class="t2">RECORD SHOP</div><div class="sub">Dig the crates. Read the customers. Save the shop.</div></div>
+      <div class="logo"><div class="t1">CHUNGY'S</div><div class="t2">RECORD SHOP</div><div class="sub">${esc(tr('title.tagline'))}</div></div>
       <div class="row" style="margin-top:14px">
-        ${saved ? `<button class="green" data-a="continue">Continue: day ${saved.day}</button>` : ''}
-        <button data-a="new">${saved ? 'New shop' : 'Open the shop'}</button>
-        <button class="ghost" data-a="how">How to play</button>
+        ${saved ? `<button class="green" data-a="continue">${esc(tr('title.continue', { day: num(saved.day) }))}</button>` : ''}
+        <button data-a="new">${esc(saved ? tr('title.newShop') : tr('title.open'))}</button>
+        <button class="ghost" data-a="how">${esc(tr('title.how'))}</button>
       </div>
-      <div class="credit">Developed by <b>Snoopster Gaming</b> · <a href="#" data-a="intro">Replay intro</a></div>
+      ${langPicker('title')}
+      <div class="credit">${tr('title.credit', { studio: '<b>Snoopster Gaming</b>' })} · <a href="#" data-a="intro">${esc(tr('title.replay'))}</a></div>
     </div>`;
+    view = showTitle;
   }
+
+  // ---------- language picker (title screen, and the 🌐 button in the HUD) ----------
+  function langPicker(where) {
+    const cur = I.getLang();
+    return `<div class="langpick ${where}" role="radiogroup" aria-label="${esc(tr('lang.label'))}"><span class="lbl" aria-hidden="true">🌐 ${esc(tr('lang.label'))}</span>${I.LANGS.map(L =>
+      `<button class="small ${L.code === cur ? 'on' : 'ghost'}" role="radio" aria-checked="${L.code === cur}" lang="${L.html}" data-lang="${L.code}">${L.code === cur ? '✓ ' : ''}${esc(L.name)}</button>`).join('')}</div>`;
+  }
+  let langOpen = false, langWasPaused = false;
+  function toggleLangMenu(open) {
+    const old = $('#langMenu'); if (old) old.remove();
+    langOpen = open;
+    if (!open) { if (mode === 'shop' && !langWasPaused) { paused = false; AU.duck(false); updatePauseBtn(); } return; }
+    if (mode === 'shop') { langWasPaused = paused; paused = true; AU.duck(true); updatePauseBtn(); }
+    renderLangMenu();
+  }
+  function renderLangMenu() {
+    const old = $('#langMenu'); if (old) old.remove();
+    const m = document.createElement('div'); m.id = 'langMenu'; m.className = 'panel langmenu';
+    m.innerHTML = `<div class="card" role="dialog" aria-label="${esc(tr('lang.label'))}">${langPicker('menu')}<div class="row"><button class="green" data-a="langclose">${esc(tr('lang.close'))}</button></div></div>`;
+    screen.appendChild(m);
+    const on = m.querySelector('[data-lang].on'); if (on) on.focus();
+  }
+  function updatePauseBtn() { const b = $('#hPause'); if (b) b.textContent = paused ? tr('hud.resume') : tr('hud.pause'); }
 
   function showHow() {
     screen.innerHTML = `<div class="panel"><div class="card howto">
-      <h2>How to run Chungy's</h2>
-      <ul>
-        <li><b>Mornings:</b> buy a crate of records. Flip them over: some are rare, a few are legendary.</li>
-        <li><b>Daytime:</b> customers come to the counter and say what they're after. Tap the record in your crate (bottom of the screen) that fits best. Genre matters most, then the mood, then the decade.</li>
-        <li><b>Read people:</b> punks look like punks, jazz cats wear berets. Their clothes give the genre away.</li>
-        <li><b>Combos:</b> perfect matches in a row build a combo, and the tips grow with it.</li>
-        <li><b>The turntable:</b> tap ▶ on a record to play it in the shop. Fans of that sound turn up more, wait longer and tip better.</li>
-        <li><b>Regulars:</b> Nan Beryl, DJ Kwesi, Gemma and friends come back. Fill their five hearts and they give you a permanent perk.</li>
-        <li><b>Sellers and thieves:</b> people sell you records over the counter. Hooded types try to nick stuff: tap them!</li>
-        <li><b>Sundays:</b> the landlord, Mr Grimsby, wants his rent. Miss it twice and the shop closes.</li>
-      </ul>
-      <div class="row"><button data-a="back">Got it</button></div></div></div>`;
+      <h2>${esc(tr('how.title'))}</h2>
+      <ul>${['morning', 'day', 'read', 'combo', 'turntable', 'regs', 'sellers', 'sundays'].map(k => `<li><b>${esc(tr('how.' + k + '.h'))}</b> ${esc(tr('how.' + k))}</li>`).join('')}</ul>
+      <div class="row"><button data-a="back">${esc(tr('how.ok'))}</button></div></div></div>`;
+    view = showHow;
   }
 
   // ---------- morning ----------
@@ -101,20 +143,21 @@
       const can = S.cash >= l.cost;
       const hint = guide ? E.lotHint(S, l) : null;
       return `<div class="card lot ${can ? '' : 'cant'}" data-lot="${l.id}">
-        ${l.mystery ? '<div class="tag">MYSTERY</div>' : l.luck >= 1.8 ? '<div class="tag">GOOD STUFF</div>' : ''}
+        ${l.mystery ? `<div class="tag">${esc(tr('lot.tagMystery'))}</div>` : l.luck >= 1.8 ? `<div class="tag">${esc(tr('lot.tagGood'))}</div>` : ''}
         <div class="crateart" data-art="${l.id}"></div>
-        <h3>${esc(l.name)}</h3><p>${esc(l.blurb)}</p>
-        <div class="meta"><span>${l.n} records · luck ${'♦'.repeat(Math.min(5, Math.round(l.luck * 1.6)))}</span><span class="cost">${money(l.cost)}</span></div>
-        ${hint ? `<div style="font-size:13px;color:#2f6f5e">📖 The Professor reckons it's worth about ${money(hint.value)}. Best in it: a ${D.RARITY[hint.best.rarity].name} ${D.GENRES[hint.best.genre].name} record.</div>` : ''}
+        <h3>${esc(lotName(l))}</h3><p>${esc(lotBlurb(l))}</p>
+        <div class="meta"><span>${esc(tn('lot.records', l.n))} · ${esc(tr('lot.luck'))} ${'♦'.repeat(Math.min(5, Math.round(l.luck * 1.6)))}</span><span class="cost">${money(l.cost)}</span></div>
+        ${hint ? `<div style="font-size:13px;color:#2f6f5e">${esc(tr('lot.hint', { value: money(hint.value), rarity: rarName(hint.best.rarity), genre: gName(hint.best.genre) }))}</div>` : ''}
       </div>`;
     }).join('');
     screen.innerHTML = `<div class="panel">
-      <div class="head"><h2>${D.DAYS[wd]} morning</h2><p>Day ${S.day} · Week ${E.week(S)} · Rent of ${money(D.rentFor(E.week(S)))} due ${rentIn === 0 ? '<b>tonight</b>' : `in ${rentIn} day${rentIn > 1 ? 's' : ''}`}</p></div>
-      ${S.event ? `<div class="card" style="padding:8px 16px;background:#b6f2e7"><b>${esc(S.event.name)}:</b> ${esc(S.event.desc)}</div>` : ''}
-      <div class="goalsbox">${S.goals.map(g => `<div>🎯 ${esc(g.text)} <b>+${money(g.reward)}</b></div>`).join('')}</div>
+      <div class="head"><h2>${esc(tr('morning.title', { day: dayName(wd) }))}</h2><p>${tr('morning.info', { day: num(S.day), week: num(E.week(S)), rent: money(D.rentFor(E.week(S))), when: rentIn === 0 ? `<b>${esc(tr('morning.tonight'))}</b>` : esc(tn('morning.inDays', rentIn)) })}</p></div>
+      ${S.event ? `<div class="card" style="padding:8px 16px;background:#b6f2e7"><b>${esc(evName(S.event))}:</b> ${esc(evDesc(S.event))}</div>` : ''}
+      <div class="goalsbox">${S.goals.map(g => `<div>🎯 ${esc(goalText(g))} <b>+${money(g.reward)}</b></div>`).join('')}</div>
       <div class="lots">${lots}</div>
-      <div class="row"><span style="color:var(--cream)">Rack: ${S.stock.length}/${E.stockCap(S)} records</span><button class="ghost" data-a="skipdig">Skip digging, open up</button></div>
+      <div class="row"><span style="color:var(--cream)">${esc(tr('morning.rack', { n: num(S.stock.length), cap: num(E.stockCap(S)) }))}</span><button class="ghost" data-a="skipdig">${esc(tr('morning.skip'))}</button></div>
     </div>`;
+    view = showMorning;
     // little crate illustrations
     for (const el of screen.querySelectorAll('[data-art]')) {
       const lot = S.lots.find(l => l.id === el.dataset.art);
@@ -129,28 +172,31 @@
   }
 
   // ---------- dig: flip the records ----------
-  function showDig(dig) {
+  let digOpened = new Set();
+  function showDig(dig, keep) {
     mode = 'dig';
-    E.save(S);
+    if (!keep) { digOpened = new Set(); E.save(S); }
     const cards = dig.items.map((it, i) => {
       const rec = D.BY_ID[it.id];
-      return `<div class="flip r-${rec.rarity}" data-i="${i}"><div class="burst"></div><div class="in"><div class="f">?</div>
-        <div class="b">${it.isNew ? '<div class="new">NEW</div>' : ''}<img src="${sleeveURL(rec)}" alt="">
-        <div class="m"><b>${esc(rec.title)}</b><br>${esc(rec.artist)}<br>${genreTag(rec.genre)} ${rec.era} · ${it.grade}</div>
-        <div class="rar" style="color:${D.RARITY[rec.rarity].col};-webkit-text-stroke:.6px #2a1a24">${D.RARITY[rec.rarity].name} · ${money(E.valueOf(it))}</div></div></div></div>`;
+      return `<div class="flip r-${rec.rarity} ${digOpened.has(i) ? 'open' : ''}" data-i="${i}" role="button" tabindex="0"><div class="burst"></div><div class="in"><div class="f">?</div>
+        <div class="b">${it.isNew ? `<div class="new">${esc(tr('dig.new'))}</div>` : ''}<img src="${sleeveURL(rec)}" alt="">
+        <div class="m"><b>${esc(rec.title)}</b><br>${esc(rec.artist)}<br>${genreTag(rec.genre)} ${esc(eraTag(rec.era))} · ${it.grade}</div>
+        <div class="rar" style="color:${D.RARITY[rec.rarity].col};-webkit-text-stroke:.6px #2a1a24">${esc(rarName(rec.rarity))} · ${money(E.valueOf(it))}</div></div></div></div>`;
     }).join('');
+    const allOpen = digOpened.size >= dig.items.length;
     screen.innerHTML = `<div class="panel">
-      <div class="head"><h2>Crate digging</h2><p>Tap each record to flip it over.</p></div>
+      <div class="head"><h2>${esc(tr('dig.title'))}</h2><p>${esc(tr('dig.sub'))}</p></div>
       <div class="dig">${cards}</div>
-      ${dig.overflow ? `<div class="card" style="padding:6px 14px">Rack full! Dave took ${dig.overflow} record${dig.overflow > 1 ? 's' : ''} off your hands for ${money(dig.resold)}. (They still count in your Crate Book.)</div>` : ''}
-      <div class="row"><button class="ghost" data-a="flipall">Flip them all</button><button class="green" data-a="open" id="openBtn" style="display:none">Open the shop!</button></div>
+      ${dig.overflow ? `<div class="card" style="padding:6px 14px">${esc(tn('dig.overflow', dig.overflow, { money: money(dig.resold) }))}</div>` : ''}
+      <div class="row"><button class="ghost" data-a="flipall">${esc(tr('dig.flipAll'))}</button><button class="green" data-a="open" id="openBtn" style="${allOpen ? '' : 'display:none'}">${esc(tr('dig.open'))}</button></div>
     </div>`;
+    view = () => showDig(dig, true);
   }
   function flipCard(el) {
     if (el.classList.contains('open')) return;
-    el.classList.add('open');
+    el.classList.add('open'); digOpened.add(+el.dataset.i);
     const rec = D.BY_ID[S.lastDig.items[+el.dataset.i].id];
-    if (rec.rarity === 'L') { AU.sfx('legend'); flash(); toast(`<b>LEGENDARY!</b> ${esc(rec.title)} by ${esc(rec.artist)}`, 'gold'); }
+    if (rec.rarity === 'L') { AU.sfx('legend'); flash(); toast(tr('dig.legendary', { title: esc(rec.title), artist: esc(rec.artist) }), 'gold'); }
     else if (rec.rarity === 'R') AU.sfx('rare'); else AU.sfx('flip');
     if (screen.querySelectorAll('.flip:not(.open)').length === 0) $('#openBtn').style.display = '';
   }
@@ -160,18 +206,25 @@
     E.openShop(S); AU.duck(false); paused = false;
     mode = 'shop'; closing = false; screen.innerHTML = ''; layer.innerHTML = ''; actors.clear(); crateSig = ''; bubbleSig = '';
     buildHud();
-    if (S.event) toast(`<b>${esc(S.event.name)}</b><br>${esc(S.event.desc)}`, 'teal');
+    view = shopView;
+    if (S.event) toast(`<b>${esc(evName(S.event))}</b><br>${esc(evDesc(S.event))}`, 'teal');
     const np = S.nowPlaying && S.stock.find(x => x.uid === S.nowPlaying);
     if (np) AU.play(E.recOf(np));
-    if (S.day === 1) tip('open', 'Morning! When someone comes to the counter, read what they want, then tap the right record in the crate below.');
-    if (S.day === 2) tip('play', 'Tip: tap ▶ on a record to play it on the shop turntable. Fans of that sound come in more and wait longer.');
-    if (S.day === 3 && E.wallSlots(S) === 0) tip('wall', 'Rent goes up every week. Spend your evenings on upgrades: they pay for themselves.');
+    if (S.day === 1) tip('open');
+    if (S.day === 2) tip('play');
+    if (S.day === 3 && E.wallSlots(S) === 0) tip('wall');
+  }
+  // Re-render the live shop after a language switch (the day carries on where it was).
+  function shopView() {
+    buildHud(); crateSig = ''; bubbleSig = ''; goalsSig = ''; lastSpokenBubble = lastSpokenBubble || '';
+    const tb = layer.querySelector('.bubble.chungy'); if (tb && tb.dataset.tip) tb.innerHTML = `<div class="who">${esc(tr('tip.who'))}</div>${esc(tr('tip.' + tb.dataset.tip))}`;
+    if (perkShown) { const p = screen.querySelector('.perkpanel'); if (p) p.remove(); renderPerk(perkShown); }
   }
 
-  function tip(id, text, secs) {
+  function tip(id, secs) {
     if (tipsShown[id]) return; tipsShown[id] = true;
     const old = layer.querySelector('.bubble.chungy'); if (old) old.remove();
-    const d = document.createElement('div'); d.className = 'bubble chungy'; d.style.left = '1090px'; d.style.top = '226px'; d.innerHTML = `<div class="who">Chungy</div>${esc(text)}`;
+    const d = document.createElement('div'); d.className = 'bubble chungy'; d.dataset.tip = id; d.style.left = '1090px'; d.style.top = '226px'; d.innerHTML = `<div class="who">${esc(tr('tip.who'))}</div>${esc(tr('tip.' + id))}`;
     layer.appendChild(d); say('talk', 'wave', 2.2);
     clearTimeout(tipTimer); tipTimer = setTimeout(() => d.remove(), (secs || 7) * 1000);
   }
@@ -219,26 +272,30 @@
   function handle(evs) {
     for (const e of evs) {
       switch (e.t) {
-        case 'enter': bell = 1; AU.sfx('bell'); if (e.kind === 'regular') { const R = D.REGULARS.find(r => r.id === e.reg); toast(`<b>${esc(R.name)}</b> just walked in!`, 'pink'); } break;
-        case 'queue': if (S.day === 1 && S.stats.served === 0) setTimeout(() => tip('first', 'Look at how they dress too: it gives away their taste. Tap a record below to hand it over. A glowing record is a perfect fit.'), 600); break;
-        case 'thief': AU.sfx('alarm'); toast('<b>Shoplifter!</b> Tap the hooded figure before they reach the door!', 'red'); break;
-        case 'stolen': { const R = D.BY_ID[e.rec]; toast(`Gutted. They got away with <b>${esc(R.title)}</b>.`, 'red'); say('cross', 'idle', 2); break; }
-        case 'caught': { const a = actors.get(e.cid); if (a) float(a.x, a.y - 240, e.auto ? 'Big Terry got him!' : 'Gotcha!', 'green'); AU.sfx('pop'); toast(e.auto ? 'Big Terry blocked the door. Nobody nicks from Chungy\'s.' : 'You caught the shoplifter! The record\'s back on the rack.', 'teal'); break; }
+        case 'enter': bell = 1; AU.sfx('bell'); if (e.kind === 'regular') { const R = D.REGULARS.find(r => r.id === e.reg); toast(tr('toast.regIn', { name: esc(R.name) }), 'pink'); } break;
+        case 'queue': if (S.day === 1 && S.stats.served === 0) setTimeout(() => tip('first'), 600); break;
+        case 'thief': AU.sfx('alarm'); toast(tr('toast.thief'), 'red'); break;
+        case 'stolen': { const R = D.BY_ID[e.rec]; toast(tr('toast.stolen', { title: esc(R.title) }), 'red'); say('cross', 'idle', 2); break; }
+        case 'caught': { const a = actors.get(e.cid); if (a) float(a.x, a.y - 240, tr(e.auto ? 'float.terry' : 'float.gotcha'), 'green'); AU.sfx('pop'); toast(esc(tr(e.auto ? 'toast.terry' : 'toast.caught')), 'teal'); break; }
         case 'leave': break;
-        case 'comboLost': if (e.n >= 2) float(980, 300, `Combo lost (${e.n}x)`, 'red'); break;
-        case 'goal': AU.sfx('cash'); toast(`🎯 Goal done: <b>${esc(e.text)}</b> +${money(e.reward)}`, 'gold'); break;
-        case 'level': AU.sfx('level'); flash(); toast(`<b>LEVEL ${e.level}!</b>${e.genres.length ? `<br>New genre: <b>${e.genres.join(', ')}</b>` : ''}${e.regs.length ? `<br>New regular: <b>${e.regs.join(', ')}</b>` : ''}`, 'gold'); break;
+        case 'comboLost': if (e.n >= 2) float(980, 300, tr('float.comboLost', { n: num(e.n) }), 'red'); break;
+        case 'goal': AU.sfx('cash'); toast(tr('toast.goal', { goal: esc(goalText(e.goal)), money: money(e.reward) }), 'gold'); break;
+        case 'level': AU.sfx('level'); flash(); toast(tr('toast.level', { level: num(e.level) }) + (e.genres.length ? '<br>' + tr('toast.newGenre', { list: esc(I.list(e.genres)) }) : '') + (e.regs.length ? '<br>' + tr('toast.newReg', { list: esc(I.list(e.regs)) }) : ''), 'gold'); break;
         case 'perk': showPerk(e); break;
       }
     }
   }
 
+  let perkShown = null;
   function showPerk(e) {
-    paused = true;
-    const R = D.REGULARS.find(r => r.id === e.reg);
+    paused = true; perkShown = e;
     AU.sfx('legend'); flash();
-    const p = document.createElement('div'); p.className = 'panel';
-    p.innerHTML = `<div class="card" style="display:flex;gap:18px;align-items:center;max-width:620px"><div id="perkPic"></div><div><h2>${esc(R.name)} ♥♥♥♥♥</h2><p>${esc(R.lines[4])}</p><p><b>New perk: ${esc(e.perk.name)}</b><br>${esc(e.perk.desc)}</p><button data-a="unpause">Brilliant!</button></div></div>`;
+    renderPerk(e);
+  }
+  function renderPerk(e) {
+    const R = D.REGULARS.find(r => r.id === e.reg);
+    const p = document.createElement('div'); p.className = 'panel perkpanel';
+    p.innerHTML = `<div class="card" style="display:flex;gap:18px;align-items:center;max-width:620px"><div id="perkPic"></div><div><h2>${esc(R.name)} ♥♥♥♥♥</h2><p>${esc(regLine(R, 4))}</p><p><b>${esc(tr('perk.new', { name: perkName(e.perk) }))}</b><br>${esc(perkDesc(e.perk))}</p><button data-a="unpause">${esc(tr('perk.ok'))}</button></div></div>`;
     screen.appendChild(p);
     p.querySelector('#perkPic').appendChild(portrait(R.look, 150, 200, 'joy'));
   }
@@ -252,9 +309,9 @@
     const a = actors.get(cu.cid);
     const r = E.offer(S, uid);
     handle(r.ev);
-    if (r.ok && r.haggle) { AU.sfx('pop'); AU.speak("That's the one! I've been after this for years.", { who: cu.reg, seed: cu.look.seed, mood: 'wow' }); say('wow', 'idle'); bubbleSig = ''; return; }
+    if (r.ok && r.haggle) { AU.sfx('pop'); AU.speak(tr('say.found'), { who: cu.reg, seed: cu.look.seed, mood: 'wow' }); say('wow', 'idle'); bubbleSig = ''; return; }
     if (r.ok) saleDone(r, a, cu);
-    else if (r.say) { AU.sfx('fail'); AU.speak(r.say, { who: cu.reg, seed: cu.look.seed, mood: 'meh' }); reaction = { cid: cu.cid, text: r.say, until: t + 2.6 }; bubbleSig = ''; say('meh', 'idle'); if (a && r.gone) float(a.x, a.y - 250, '✗', 'red'); }
+    else if (r.say) { AU.sfx('fail'); AU.speak(say$(r.say), { who: cu.reg, seed: cu.look.seed, mood: 'meh' }); reaction = { cid: cu.cid, text: r.say, until: t + 2.6 }; bubbleSig = ''; say('meh', 'idle'); if (a && r.gone) float(a.x, a.y - 250, '✗', 'red'); }
     crateSig = '';
   }
 
@@ -262,24 +319,24 @@
     AU.sfx('till');
     const x = a ? a.x : 850, y = a ? a.y - 250 : 300;
     float(x, y, '+' + money(r.price), 'green');
-    if (r.tip) setTimeout(() => float(x + 40, y + 30, 'tip ' + money(r.tip), ''), 250);
+    if (r.tip) setTimeout(() => float(x + 40, y + 30, tr('float.tip', { money: money(r.tip) }), ''), 250);
     if (r.perfect) {
-      if (r.combo >= 2) { AU.sfx('combo', r.combo); float(980, 260, `COMBO ${r.combo}x`, 'big'); }
-      else float(x, y - 40, 'PERFECT!', 'pink');
+      if (r.combo >= 2) { AU.sfx('combo', r.combo); float(980, 260, tr('float.combo', { n: num(r.combo) }), 'big'); }
+      else float(x, y - 40, tr('float.perfect'), 'pink');
       say('joy', r.combo >= 3 ? 'cheer' : 'wave', 1.6);
     } else say('happy', 'idle');
     if (a) { a.hold = D.GENRES[r.rec.genre].col; a.cheer = r.perfect ? 1.4 : 0; }
     for (let i = 0; i < 6; i++) parts.push({ x: x, y: y + 60, vx: (1210 - x) / 0.9 + (Math.random() - 0.5) * 80, vy: -320 - Math.random() * 120, g: 600, life: 0.9, kind: 'coin' });
-    if (r.hearts) { AU.sfx('heart'); AU.speak(r.regLine, { who: cu.reg, seed: cu.look.seed, mood: 'joy' }); reaction = { cid: cu.cid, text: r.regLine, until: t + 4.5, keep: true }; for (let i = 0; i < 5; i++) parts.push({ x: x + (Math.random() - 0.5) * 60, y: y + 40, vx: (Math.random() - 0.5) * 40, vy: -90, g: 0, life: 1.6, kind: 'heart' }); }
-    else if (cu && r.perfect) { AU.speak('Brilliant! Cheers Chungy!', { who: cu.reg, seed: cu.look.seed, mood: 'joy' }); }
-    if (S.day === 1 && S.stats.served === 1) setTimeout(() => tip('combo', 'Lovely! Perfect matches in a row build a combo, and the tips grow with it.'), 900);
-    if (r.rec.rarity === 'L') { flash(); toast(`You sold a <b>legendary</b> record for ${money(r.price + r.tip)}!`, 'gold'); }
+    if (r.hearts) { AU.sfx('heart'); AU.speak(say$(r.regLine), { who: cu.reg, seed: cu.look.seed, mood: 'joy' }); reaction = { cid: cu.cid, text: r.regLine, until: t + 4.5, keep: true }; for (let i = 0; i < 5; i++) parts.push({ x: x + (Math.random() - 0.5) * 60, y: y + 40, vx: (Math.random() - 0.5) * 40, vy: -90, g: 0, life: 1.6, kind: 'heart' }); }
+    else if (cu && r.perfect) { AU.speak(tr('say.cheers'), { who: cu.reg, seed: cu.look.seed, mood: 'joy' }); }
+    if (S.day === 1 && S.stats.served === 1) setTimeout(() => tip('combo'), 900);
+    if (r.rec.rarity === 'L') { flash(); toast(tr('toast.soldLegend', { money: money(r.price + r.tip) }), 'gold'); }
   }
 
   function playRecord(uid) {
     const it = S.stock.find(x => x.uid === uid); if (!it) return;
     E.setPlaying(S, uid); AU.play(E.recOf(it)); crateSig = '';
-    float(984, 360, '♫ ' + D.GENRES[E.recOf(it).genre].name, 'pink');
+    float(984, 360, tr('float.playing', { genre: gName(E.recOf(it).genre) }), 'pink');
   }
 
   function cycleTurntable() {
@@ -294,30 +351,31 @@
   function buildHud() {
     hud.innerHTML = `<div class="bar">
       <div class="chip clock"><span id="hClock"></span></div>
-      <div class="chip cash">💷 <span id="hCash"></span></div>
-      <div class="chip"><span class="stars" id="hStars"></span></div>
-      <div class="chip">Lv <span id="hLv"></span><div class="xp"><i id="hXp"></i></div></div>
+      <div class="chip cash" title="${esc(tr('hud.cash'))}">💷 <span id="hCash"></span></div>
+      <div class="chip" title="${esc(tr('hud.rating'))}"><span class="stars" id="hStars"></span></div>
+      <div class="chip" title="${esc(tr('hud.xp'))}">${esc(tr('hud.level'))} <span id="hLv"></span><div class="xp"><i id="hXp"></i></div></div>
       <div class="chip combo" id="hCombo" style="display:none"></div>
       <div class="sp"></div>
-      ${mode === 'shop' ? '<button class="small ghost" data-a="pause" id="hPause">⏸ Pause</button>' : ''}
-      <button class="small ghost" data-a="mute" id="hMute">${AU.muted ? '🔇' : '🔊'}</button>
+      ${mode === 'shop' ? `<button class="small ghost" data-a="pause" id="hPause">${esc(paused ? tr('hud.resume') : tr('hud.pause'))}</button>` : ''}
+      <button class="small ghost" data-a="lang" id="hLang" title="${esc(tr('lang.label'))}" aria-label="${esc(tr('lang.label'))}">🌐 ${esc(I.info().name)}</button>
+      <button class="small ghost" data-a="mute" id="hMute" title="${esc(tr('hud.mute'))}" aria-label="${esc(tr('hud.mute'))}">${AU.muted ? '🔇' : '🔊'}</button>
     </div>
-    ${mode === 'shop' ? `<div class="goals" id="hGoals"></div><div class="np" id="hNp" data-a="turntable" title="Click to spin the next record in your crate"></div>` : ''}`;
+    ${mode === 'shop' ? `<div class="goals" id="hGoals"></div><div class="np" id="hNp" data-a="turntable" title="${esc(tr('hud.npTitle'))}"></div>` : ''}`;
     hudEls = { clock: $('#hClock'), cash: $('#hCash'), stars: $('#hStars'), lv: $('#hLv'), xp: $('#hXp'), combo: $('#hCombo'), goals: $('#hGoals'), np: $('#hNp') };
   }
   let goalsSig = '';
   function updateHud() {
     if (!S || !hudEls) return;
     const T = S.today;
-    const day = D.DAYS[E.weekday(S)].slice(0, 3);
-    if (T) { const mins = Math.min(480, Math.floor(T.t / E.DAY_LEN * 480)); const hh = 10 + Math.floor(mins / 60), mm = mins % 60; hudEls.clock.textContent = `${day} ${String(hh).padStart(2, '0')}:${String(mm - mm % 5).padStart(2, '0')} ${T.t >= E.DAY_LEN ? '· Closed' : T.t > E.DAY_LEN - 15 ? '· Closing soon' : ''}`; }
-    else hudEls.clock.textContent = `${day} · Day ${S.day} · Week ${E.week(S)}`;
+    const day = dayName(E.weekday(S), true);
+    if (T) { const mins = Math.min(480, Math.floor(T.t / E.DAY_LEN * 480)); const hh = 10 + Math.floor(mins / 60), mm = mins % 60; hudEls.clock.textContent = `${day} ${String(hh).padStart(2, '0')}:${String(mm - mm % 5).padStart(2, '0')} ${T.t >= E.DAY_LEN ? '· ' + tr('hud.closed') : T.t > E.DAY_LEN - 15 ? '· ' + tr('hud.closingSoon') : ''}`; }
+    else hudEls.clock.textContent = tr('hud.dayWeek', { day, n: num(S.day), week: num(E.week(S)) });
     hudEls.cash.textContent = money(S.cash);
     hudEls.stars.textContent = stars(E.rating(S));
-    hudEls.lv.textContent = S.level;
+    hudEls.lv.textContent = num(S.level);
     hudEls.xp.style.width = Math.round(S.xp / E.xpFor(S.level) * 100) + '%';
-    if (T && T.combo >= 2) { hudEls.combo.style.display = ''; hudEls.combo.textContent = `🔥 ${T.combo}x combo`; } else hudEls.combo.style.display = 'none';
-    if (hudEls.goals) { const sig = JSON.stringify(S.goals.map(g => [g.have, g.done])); if (sig !== goalsSig) { goalsSig = sig; hudEls.goals.innerHTML = '<b>Today\'s goals</b>' + S.goals.map(g => `<div class="${g.done ? 'done' : ''}"><span>${esc(g.text)}</span><span>${g.done ? '✓' : g.id === 'earn' ? money(g.have) : g.have + '/' + g.n}</span></div>`).join(''); } }
+    if (T && T.combo >= 2) { hudEls.combo.style.display = ''; hudEls.combo.textContent = tr('hud.combo', { n: num(T.combo) }); } else hudEls.combo.style.display = 'none';
+    if (hudEls.goals) { const sig = JSON.stringify(S.goals.map(g => [g.have, g.done])); if (sig !== goalsSig) { goalsSig = sig; hudEls.goals.innerHTML = `<b>${esc(tr('hud.goals'))}</b>` + S.goals.map(g => `<div class="${g.done ? 'done' : ''}"><span>${esc(goalText(g))}</span><span>${g.done ? '✓' : g.id === 'earn' ? money(g.have) : num(g.have) + '/' + num(g.n)}</span></div>`).join(''); } }
     if (hudEls.np) {
       const np = S.nowPlaying && S.stock.find(x => x.uid === S.nowPlaying);
       if (np) {
@@ -326,9 +384,9 @@
           const h = Math.round(25 + 75 * Math.abs(Math.sin(t * 7.5 + k * 0.85)) * (0.55 + beat * 0.45));
           return `<i style="height:${h}%;background:${k % 2 ? gCol : 'var(--teal)'}"></i>`;
         }).join('');
-        hudEls.np.innerHTML = `<div class="np-wrap"><div class="np-disc" style="--gc:${gCol}"><span></span></div><div class="np-info"><b>${esc(rec.title)}</b> <small>(${D.GENRES[rec.genre].name})</small><br>${esc(rec.artist)} · <span class="np-next">↻ next</span></div><div class="np-eq">${bars}</div></div>`;
+        hudEls.np.innerHTML = `<div class="np-wrap"><div class="np-disc" style="--gc:${gCol}"><span></span></div><div class="np-info"><b>${esc(rec.title)}</b> <small>(${esc(gName(rec.genre))})</small><br>${esc(rec.artist)} · <span class="np-next">${esc(tr('hud.next'))}</span></div><div class="np-eq">${bars}</div></div>`;
       } else {
-        hudEls.np.innerHTML = 'Turntable empty: tap ▶ on a record';
+        hudEls.np.textContent = tr('hud.npEmpty');
       }
     }
   }
@@ -347,16 +405,16 @@
       const rec = E.recOf(it), framed = S.wall.includes(it.uid);
       const sc = cu && cu.state === 'queue' && cu.req && !framed ? E.matchScore(cu.req, rec) : 0;
       const good = hint && sc >= 0.99;
-      return `<div class="tile r-${rec.rarity} ${S.nowPlaying === it.uid ? 'playing' : ''} ${framed ? 'framed' : ''} ${good ? 'hint' : ''}" data-uid="${it.uid}" title="${esc(rec.title)} by ${esc(rec.artist)} (${D.RARITY[rec.rarity].name}, ${it.grade})">
+      return `<div class="tile r-${rec.rarity} ${S.nowPlaying === it.uid ? 'playing' : ''} ${framed ? 'framed' : ''} ${good ? 'hint' : ''}" data-uid="${it.uid}" title="${esc(tr('crate.tileTitle', { title: rec.title, artist: rec.artist, rarity: rarName(rec.rarity), grade: it.grade }))}">
         <img src="${sleeveURL(rec)}" alt=""><div class="price">${money(E.valueOf(it))}</div>
         ${idx < 9 ? `<div class="kbd">${idx + 1}</div>` : ''}
-        <div class="acts"><span data-play="${it.uid}" title="Play on the turntable">▶</span></div>
-        <div class="meta">${genreTag(rec.genre)} <b>${rec.era}</b><br>${rec.moods.map(m => `<span class="mood">${m}</span>`).join('')}</div></div>`;
-    }).join('') || '<div class="tile empty">No records!<br>Dig some up<br>tomorrow.</div>';
-    crate.innerHTML = `<div class="drawer"><div class="tabs"><span class="lbl">Your crate</span>
-      <button class="${filter === 'all' ? 'on' : ''}" data-f="all">All</button>
-      ${gs.map(g => `<button class="${filter === g ? 'on' : ''}" data-f="${g}" style="border-color:${D.GENRES[g].col}">${D.GENRES[g].name}</button>`).join('')}
-      <span class="cap">Keys 1–9 offer · T next tune · ${S.stock.length}/${E.stockCap(S)} records</span></div>
+        <div class="acts"><span data-play="${it.uid}" title="${esc(tr('crate.play'))}" aria-label="${esc(tr('crate.play'))}">▶</span></div>
+        <div class="meta">${genreTag(rec.genre)} <b>${esc(eraTag(rec.era))}</b><div class="moods">${rec.moods.map(m => `<span class="mood">${esc(moodTag(m))}</span>`).join('')}</div></div></div>`;
+    }).join('') || `<div class="tile empty">${tr('crate.empty')}</div>`;
+    crate.innerHTML = `<div class="drawer"><div class="tabs"><span class="lbl">${esc(tr('crate.label'))}</span>
+      <button class="${filter === 'all' ? 'on' : ''}" data-f="all">${esc(tr('crate.all'))}</button>
+      ${gs.map(g => `<button class="${filter === g ? 'on' : ''}" data-f="${g}" style="border-color:${D.GENRES[g].col}">${esc(gName(g))}</button>`).join('')}
+      <span class="cap">${esc(tr('crate.keys', { n: num(S.stock.length), cap: num(E.stockCap(S)) }))}</span></div>
       <div class="row">${tiles}</div></div>`;
   }
 
@@ -366,7 +424,7 @@
     if (mode !== 'shop' || !S.today) return;
     const cu = E.front(S);
     let sig = cu ? cu.cid + cu.state + (cu.haggle ? cu.haggle.price : '') : '';
-    if (reaction && reaction.until > t) sig += reaction.text; else reaction = null;
+    if (reaction && reaction.until > t) sig += JSON.stringify(reaction.text); else reaction = null;
     // thieves
     for (const x of S.today.cust) if (x.kind === 'thief' && x.state === 'sneak') sig += 'T' + x.cid;
     if (sig !== bubbleSig) {
@@ -377,10 +435,10 @@
         const spkKey = cu.cid + ':' + cu.state;
         if (spkKey !== lastSpokenBubble && cu.state === 'queue' && (!reaction || reaction.cid !== cu.cid)) {
           lastSpokenBubble = spkKey;
-          AU.speak(cu.text, { who: cu.reg, seed: cu.look.seed, mood: cu.face });
+          AU.speak(custSay(cu), { who: cu.reg, seed: cu.look.seed, mood: cu.face });
         }
       }
-      for (const x of S.today.cust) if (x.kind === 'thief' && x.state === 'sneak') { const b = document.createElement('div'); b.className = 'thief'; b.dataset.thief = x.cid; b.textContent = '🚨 STOP THIEF!'; layer.appendChild(b); }
+      for (const x of S.today.cust) if (x.kind === 'thief' && x.state === 'sneak') { const b = document.createElement('div'); b.className = 'thief'; b.dataset.thief = x.cid; b.textContent = tr('thief.stop'); layer.appendChild(b); }
     }
     // keep bubbles over heads
     const b = layer.querySelector('.bubble:not(.chungy)');
@@ -393,16 +451,16 @@
     const tags = [];
     if (cu.req.id) {
       const tgt = D.BY_ID[cu.req.id];
-      if (tgt) tags.push(`<span class="ctag g" style="background:${D.GENRES[tgt.genre].col}">🎯 ${esc(tgt.genre.toUpperCase())}</span>`);
+      if (tgt) tags.push(`<span class="ctag g" style="background:${D.GENRES[tgt.genre].col}">🎯 ${esc(gName(tgt.genre).toLocaleUpperCase(I.locale()))}</span>`);
     } else {
       if (cu.req.genre) {
         const g = D.GENRES[cu.req.genre];
-        tags.push(`<span class="ctag g" style="background:${g.col}">🎵 ${esc(g.name)}</span>`);
+        tags.push(`<span class="ctag g" style="background:${g.col}">🎵 ${esc(gName(cu.req.genre))}</span>`);
       } else if (cu.genre) {
-        tags.push(`<span class="ctag" title="Look at their outfit!">👕 Looks like ${esc(D.GENRES[cu.genre].name)}?</span>`);
+        tags.push(`<span class="ctag" title="${esc(tr('bubble.outfit'))}">${esc(tr('bubble.looksLike', { genre: gName(cu.genre) }))}</span>`);
       }
-      if (cu.req.mood) tags.push(`<span class="ctag">✨ ${esc(cu.req.mood)}</span>`);
-      if (cu.req.era) tags.push(`<span class="ctag">📅 ${esc(cu.req.era)}</span>`);
+      if (cu.req.mood) tags.push(`<span class="ctag">✨ ${esc(moodTag(cu.req.mood))}</span>`);
+      if (cu.req.era) tags.push(`<span class="ctag">📅 ${esc(eraTag(cu.req.era))}</span>`);
     }
     return tags.length ? `<div class="clues">${tags.join('')}</div>` : '';
   }
@@ -410,18 +468,18 @@
   function bubbleFor(cu) {
     const d = document.createElement('div'); d.className = 'bubble';
     const reg = cu.kind === 'regular' ? S.regs[cu.reg] : null;
-    const who = `<div class="who"><span>${esc(cu.name)}${cu.kind === 'collector' ? ' · collector' : cu.kind === 'seller' ? ' · selling' : ''}${cu.vibe ? ' · ♫ loves this tune' : ''}</span>${reg ? `<span class="hearts">${'♥'.repeat(reg.hearts)}${'♡'.repeat(5 - reg.hearts)}</span>` : ''}</div>`;
-    const rx = reaction && reaction.cid === cu.cid ? `<div style="font-style:italic;color:#7a3c5c;margin-bottom:4px">"${esc(reaction.text)}"</div>` : '';
+    const who = `<div class="who"><span>${esc(custName(cu))}${cu.kind === 'collector' ? ' · ' + esc(tr('bubble.collector')) : cu.kind === 'seller' ? ' · ' + esc(tr('bubble.selling')) : ''}${cu.vibe ? ' · ' + esc(tr('bubble.vibe')) : ''}</span>${reg ? `<span class="hearts">${'♥'.repeat(reg.hearts)}${'♡'.repeat(5 - reg.hearts)}</span>` : ''}</div>`;
+    const rx = reaction && reaction.cid === cu.cid ? `<div style="font-style:italic;color:#7a3c5c;margin-bottom:4px">“${esc(say$(reaction.text))}”</div>` : '';
     if (cu.kind === 'seller') {
       const rec = D.BY_ID[cu.offer.id], guide = E.hasPerk(S, 'guide');
       const val = E.valueOf(cu.offer);
-      d.innerHTML = `${who}${esc(cu.text)}<div class="offer"><img src="${sleeveURL(rec)}" alt=""><div><b>${esc(rec.title)}</b><br>${esc(rec.artist)}<br>${genreTag(rec.genre)} ${rec.era} · ${cu.offer.grade}<br><span style="color:${D.RARITY[rec.rarity].col};font-weight:700">${D.RARITY[rec.rarity].name}</span>${guide ? ` · worth ${money(val)}` : ''}${!S.found[rec.id] ? ' · <b style="color:var(--pink)">NEW</b>' : ''}</div></div>
-        <div class="btns"><button class="small green" data-a="buyin">Buy for ${money(cu.ask)}</button><button class="small ghost" data-a="away">No thanks</button></div><div class="pat"><i></i></div>`;
+      d.innerHTML = `${who}${esc(custSay(cu))}<div class="offer"><img src="${sleeveURL(rec)}" alt=""><div><b>${esc(rec.title)}</b><br>${esc(rec.artist)}<br>${genreTag(rec.genre)} ${esc(eraTag(rec.era))} · ${cu.offer.grade}<br><span style="color:${D.RARITY[rec.rarity].col};font-weight:700">${esc(rarName(rec.rarity))}</span>${guide ? ' · ' + esc(tr('bubble.worth', { money: money(val) })) : ''}${!S.found[rec.id] ? ` · <b style="color:var(--pink)">${esc(tr('bubble.new'))}</b>` : ''}</div></div>
+        <div class="btns"><button class="small green" data-a="buyin">${esc(tr('bubble.buy', { money: money(cu.ask) }))}</button><button class="small ghost" data-a="away">${esc(tr('bubble.noThanks'))}</button></div><div class="pat"><i></i></div>`;
     } else if (cu.state === 'haggle') {
-      d.innerHTML = `${who}${rx || '"That\'s the one! I\'ve been after this for years."'}<div style="margin-top:6px">They'll pay <b>${money(cu.haggle.price)}</b>${cu.haggle.tip ? ` + ${money(cu.haggle.tip)} tip` : ''}.</div>
-        <div class="btns"><button class="small green" data-a="deal">Deal!</button><button class="small pink" data-a="push">Push for more (risky)</button></div>`;
+      d.innerHTML = `${who}${rx || '“' + esc(tr('say.found')) + '”'}<div style="margin-top:6px">${tr('bubble.willPay', { price: money(cu.haggle.price), tip: cu.haggle.tip ? esc(tr('bubble.plusTip', { money: money(cu.haggle.tip) })) : '' })}</div>
+        <div class="btns"><button class="small green" data-a="deal">${esc(tr('bubble.deal'))}</button><button class="small pink" data-a="push">${esc(tr('bubble.push'))}</button></div>`;
     } else {
-      d.innerHTML = `${who}${rx}${esc(cu.text)}${cluePills(cu)}<div class="btns"><button class="small ghost" data-a="away">Sorry, haven't got one</button></div><div class="pat"><i></i></div>`;
+      d.innerHTML = `${who}${rx}${esc(custSay(cu))}${cluePills(cu)}<div class="btns"><button class="small ghost" data-a="away">${esc(tr('bubble.sorry'))}</button></div><div class="pat"><i></i></div>`;
     }
     return d;
   }
@@ -504,7 +562,7 @@
     if (Math.abs(d) > 2) { cat.x += Math.sign(d) * Math.min(Math.abs(d), 60 * dt); cat.flip = d < 0; }
     else if (cat.wait < 0) { if (Math.random() < 0.3) { cat.sleep = true; cat.wait = 8; } else { cat.tx = 420 + Math.random() * 420; cat.wait = 2 + Math.random() * 4; } }
     let hit = layer.querySelector('.hit.cat');
-    if (!hit && mode === 'shop') { hit = document.createElement('div'); hit.className = 'hit cat'; hit.dataset.a = 'cat'; hit.title = 'Wax the cat'; layer.appendChild(hit); }
+    if (!hit && mode === 'shop') { hit = document.createElement('div'); hit.className = 'hit cat'; hit.dataset.a = 'cat'; hit.title = tr('cat.title'); layer.appendChild(hit); }
     if (hit) { hit.style.left = (cat.x - 45) + 'px'; hit.style.top = '490px'; hit.style.width = '90px'; hit.style.height = '66px'; }
   }
 
@@ -525,17 +583,18 @@
   }
 
   const GRIMSBY = { skin: '#f0c9a8', hair: 'bald', hairCol: '#9a9a9a', top: 'suit', col: '#3a3a44', legs: '#2a2a30', acc: 'glasses', build: 1.25, h: 1.06, seed: 9, eyes: '#4e5d6c' };
-  function showGrimsby() {
+  function showGrimsby(quiet) {
     mode = 'rent';
     const due = D.rentFor(E.week(S));
     const can = S.cash >= due;
-    AU.speak(`Evening Chungy. That will be ${due} pounds for the week.`, { who: 'grimsby', mood: can ? 'neutral' : 'cross' });
+    if (!quiet) AU.speak(tr('rent.speak', { due: money(due) }), { who: 'grimsby', mood: can ? 'neutral' : 'cross' });
     screen.innerHTML = `<div class="panel"><div class="card grimsby"><div id="grimPic"></div><div style="max-width:440px">
-      <h2>Mr Grimsby, the landlord</h2>
-      <p style="font-size:18px">"Evening, Chungy. Sunday again. That'll be <b>${money(due)}</b> for the week. Rent goes up next week, as always."</p>
-      <p>You have <b>${money(S.cash)}</b>. ${S.strikes ? `<b style="color:var(--red)">You already missed a payment. Miss another and he takes the keys.</b>` : ''}</p>
-      <div class="row" style="justify-content:flex-start"><button class="${can ? 'green' : 'red'}" data-a="payrent">${can ? 'Pay ' + money(due) : 'Pay what I can (' + money(S.cash) + ')'}</button></div>
+      <h2>${esc(tr('rent.title'))}</h2>
+      <p style="font-size:18px">${tr('rent.line', { due: money(due) })}</p>
+      <p>${tr('rent.have', { cash: money(S.cash) })} ${S.strikes ? `<b style="color:var(--red)">${esc(tr('rent.warn'))}</b>` : ''}</p>
+      <div class="row" style="justify-content:flex-start"><button class="${can ? 'green' : 'red'}" data-a="payrent">${esc(can ? tr('rent.pay', { money: money(due) }) : tr('rent.payPart', { money: money(S.cash) }))}</button></div>
     </div></div></div>`;
+    view = () => showGrimsby(true);
     $('#grimPic').appendChild(portrait(GRIMSBY, 220, 290, can ? 'neutral' : 'cross'));
   }
 
@@ -543,79 +602,82 @@
     mode = 'evening'; E.save(S);
     buildHud();
     const sum = lastSum || { takings: 0, served: 0, perfect: 0, rating: E.rating(S), goals: 0 };
-    const tabs = [['today', 'Today'], ['ups', 'Upgrades'], ['book', 'Crate Book'], ['regs', 'Regulars'], ['wall', 'Wall & window']];
+    const tabs = ['today', 'ups', 'book', 'regs', 'wall'].map(k => [k, tr('eve.tab.' + k)]);
     let body = '';
     if (tab === 'today') {
       body = `<div class="stats">
-        <div class="stat"><b>${money(sum.takings)}</b>taken today</div><div class="stat"><b>${sum.served}</b>records sold</div>
-        <div class="stat"><b>${sum.perfect}</b>perfect matches</div><div class="stat"><b style="color:#e2a21b">${stars(sum.rating)}</b>shop rating</div></div>
+        <div class="stat"><b>${money(sum.takings)}</b>${esc(tr('eve.taken'))}</div><div class="stat"><b>${num(sum.served)}</b>${esc(tr('eve.sold'))}</div>
+        <div class="stat"><b>${num(sum.perfect)}</b>${esc(tr('eve.perfect'))}</div><div class="stat"><b style="color:#e2a21b">${stars(sum.rating)}</b>${esc(tr('eve.rating'))}</div></div>
         <div class="card" style="margin-top:12px;box-shadow:none;border-width:3px">
-        <h3>Goals</h3>${S.goals.map(g => `<div>${g.done ? '✅' : '⬜'} ${esc(g.text)} ${g.done ? `(+${money(g.reward)})` : ''}</div>`).join('')}
-        ${sum.coffee ? `<div style="margin-top:6px">☕ Coffee sales: ${money(sum.coffee)}</div>` : ''}
-        ${sum.book ? `<div style="margin-top:6px">📖 Crate Book set complete: <b>${sum.book.join(', ')}</b>! +£150 each</div>` : ''}
-        <div style="margin-top:8px">Best combo ever: <b>${S.stats.bestCombo}x</b> · Records sold in total: <b>${S.stats.sold}</b> · Crate Book: <b>${Object.keys(S.found).length}/${D.CATALOGUE.length}</b></div>
-        <div style="margin-top:6px">Next rent: <b>${money(D.rentFor(E.week({ day: S.day + 1 })))}</b> on ${E.weekday(S) === 6 ? 'next' : 'this'} Sunday.</div></div>`;
+        <h3>${esc(tr('eve.goals'))}</h3>${S.goals.map(g => `<div>${g.done ? '✅' : '⬜'} ${esc(goalText(g))} ${g.done ? `(+${money(g.reward)})` : ''}</div>`).join('')}
+        ${sum.coffee ? `<div style="margin-top:6px">${esc(tr('eve.coffee', { money: money(sum.coffee) }))}</div>` : ''}
+        ${sum.book ? `<div style="margin-top:6px">${tr('eve.book', { list: esc(I.list(sum.book)), money: money(150) })}</div>` : ''}
+        <div style="margin-top:8px">${tr('eve.totals', { combo: num(S.stats.bestCombo), sold: num(S.stats.sold), found: num(Object.keys(S.found).length), all: num(D.CATALOGUE.length) })}</div>
+        <div style="margin-top:6px">${tr(E.weekday(S) === 6 ? 'eve.nextRentNext' : 'eve.nextRentThis', { money: money(D.rentFor(E.week({ day: S.day + 1 }))) })}</div></div>`;
     } else if (tab === 'ups') {
       body = `<div class="ups">${D.UPGRADES.map(u => {
         const lv = S.up[u.id], cost = E.upgradeCost(S, u.id);
-        return `<div class="up"><h3>${u.icon} ${esc(u.name)}</h3><p>${esc(u.desc)}</p><div class="lv">Level ${lv}/${u.levels.length}</div>
-          ${cost == null ? '<button class="small ghost" disabled>Maxed out</button>' : `<button class="small ${S.cash >= cost ? 'green' : ''}" data-up="${u.id}" ${S.cash >= cost ? '' : 'disabled'}>Buy for ${money(cost)}</button>`}</div>`;
+        return `<div class="up"><h3>${u.icon} ${esc(upName(u))}</h3><p>${esc(upDesc(u))}</p><div class="lv">${esc(tr('eve.level', { n: num(lv), max: num(u.levels.length) }))}</div>
+          ${cost == null ? `<button class="small ghost" disabled>${esc(tr('eve.maxed'))}</button>` : `<button class="small ${S.cash >= cost ? 'green' : ''}" data-up="${u.id}" ${S.cash >= cost ? '' : 'disabled'}>${esc(tr('eve.buy', { money: money(cost) }))}</button>`}</div>`;
       }).join('')}</div>`;
     } else if (tab === 'book') {
       const curPlay = AU.playing();
-      body = '<p style="margin:0 0 6px;font-size:13px;color:#5b3b4b">Tap any discovered record to spin it on the jukebox! Complete all 14 in a genre for a <b>£150</b> bonus.</p><div class="book">' + D.GENRE_IDS.map(g => {
+      body = `<p style="margin:0 0 6px;font-size:13px;color:#5b3b4b">${tr('eve.bookHelp', { money: money(150) })}</p><div class="book">` + D.GENRE_IDS.map(g => {
         const recs = D.CATALOGUE.filter(r => r.genre === g), have = recs.filter(r => S.found[r.id]).length;
         const locked = D.GENRES[g].unlock > S.level;
-        return `<div class="hdr"><span>${genreTag(g)} ${D.GENRES[g].name}${locked ? ` (unlocks at level ${D.GENRES[g].unlock})` : ''}</span><span>${have}/${recs.length}${S.bookDone && S.bookDone[g] ? ' ✓' : ''}</span></div>` +
-          recs.map(r => S.found[r.id] ? `<div class="slot found r-${r.rarity} ${curPlay && curPlay.id === r.id ? 'playing' : ''}" data-preview="${r.id}" title="Tap to play: ${esc(r.title)} by ${esc(r.artist)} (${D.RARITY[r.rarity].name})"><img src="${sleeveURL(r)}" alt=""></div>` : `<div class="slot r-${r.rarity}">${r.rarity === 'L' ? '★' : '?'}</div>`).join('');
+        return `<div class="hdr"><span>${genreTag(g)} ${esc(gName(g))}${locked ? ' ' + esc(tr('eve.unlocksAt', { n: num(D.GENRES[g].unlock) })) : ''}</span><span>${num(have)}/${num(recs.length)}${S.bookDone && S.bookDone[g] ? ' ✓' : ''}</span></div>` +
+          recs.map(r => S.found[r.id] ? `<div class="slot found r-${r.rarity} ${curPlay && curPlay.id === r.id ? 'playing' : ''}" data-preview="${r.id}" title="${esc(tr('eve.tapPlay', { title: r.title, artist: r.artist, rarity: rarName(r.rarity) }))}"><img src="${sleeveURL(r)}" alt=""></div>` : `<div class="slot r-${r.rarity}">${r.rarity === 'L' ? '★' : '?'}</div>`).join('');
       }).join('') + '</div>';
     } else if (tab === 'regs') {
-      body = `<div class="regs">${D.REGULARS.map(R => { const st = S.regs[R.id], locked = R.unlock > S.level; return `<div class="reg ${locked ? 'locked' : ''}" data-reg="${R.id}" title="Click to hear ${esc(R.name)}"><div class="pic"></div><b>${esc(R.name)}</b><div>Loves ${R.likes.map(g => D.GENRES[g].name).join(' & ')}</div><div class="hearts">${'♥'.repeat(st.hearts)}${'♡'.repeat(5 - st.hearts)}</div>${locked ? `<div>Turns up at level ${R.unlock}</div>` : st.hearts >= 5 ? `<div class="perk">✨ ${esc(R.perk.name)}: ${esc(R.perk.desc)}</div>` : `<div style="color:#7a3c5c">Perk at 5 hearts: ${esc(R.perk.name)}</div>`}${st.hearts ? `<div style="font-style:italic;margin-top:4px">"${esc(R.lines[st.hearts - 1])}"</div>` : ''}</div>`; }).join('')}</div>`;
+      body = `<div class="regs">${D.REGULARS.map(R => { const st = S.regs[R.id], locked = R.unlock > S.level; return `<div class="reg ${locked ? 'locked' : ''}" data-reg="${R.id}" title="${esc(tr('eve.hear', { name: R.name }))}"><div class="pic"></div><b>${esc(R.name)}</b><div>${esc(tr('eve.loves', { list: I.list(R.likes.map(gName)) }))}</div><div class="hearts">${'♥'.repeat(st.hearts)}${'♡'.repeat(5 - st.hearts)}</div>${locked ? `<div>${esc(tr('eve.turnsUp', { n: num(R.unlock) }))}</div>` : st.hearts >= 5 ? `<div class="perk">✨ ${esc(perkName(R.perk))}: ${esc(perkDesc(R.perk))}</div>` : `<div style="color:#7a3c5c">${esc(tr('eve.perkAt', { name: perkName(R.perk) }))}</div>`}${st.hearts ? `<div style="font-style:italic;margin-top:4px">“${esc(regLine(R, st.hearts - 1))}”</div>` : ''}</div>`; }).join('')}</div>`;
     } else if (tab === 'wall') {
       const slots = E.wallSlots(S);
       const list = S.stock.slice().sort((a, b) => E.valueOf(b) - E.valueOf(a));
-      body = `<p>${slots ? `Frame up to <b>${slots}</b> records on the Wall of Fame. Framed records aren't for sale, but they boost your rating and pull in their fans.` : 'Buy <b>Wall of Fame frames</b> in Upgrades to show off your best finds.'}
-        Pick one record for the <b>shop window</b> too: it draws in fans of that genre.</p>
+      body = `<p>${slots ? tr('eve.wallHelp', { n: num(slots) }) : tr('eve.wallBuy')}
+        ${tr('eve.windowHelp')}</p>
         <div class="row" style="justify-content:flex-start;gap:8px">${list.map(it => { const rec = E.recOf(it), fr = S.wall.includes(it.uid), win = S.windowId === rec.id; return `<div class="tile r-${rec.rarity}" style="cursor:default"><img src="${sleeveURL(rec)}" alt=""><div class="price">${money(E.valueOf(it))}</div><div class="meta" style="display:flex;gap:3px;justify-content:center;padding-top:4px">
-          ${slots ? `<button class="small ${fr ? 'pink' : 'ghost'}" style="font-size:11px;padding:1px 5px" data-frame="${it.uid}">${fr ? 'Framed' : 'Frame'}</button>` : ''}
-          <button class="small ${win ? 'pink' : 'ghost'}" style="font-size:11px;padding:1px 5px" data-window="${it.uid}">${win ? 'In window' : 'Window'}</button></div></div>`; }).join('')}</div>`;
+          ${slots ? `<button class="small ${fr ? 'pink' : 'ghost'}" style="font-size:11px;padding:1px 5px" data-frame="${it.uid}">${esc(tr(fr ? 'eve.framed' : 'eve.frame'))}</button>` : ''}
+          <button class="small ${win ? 'pink' : 'ghost'}" style="font-size:11px;padding:1px 5px" data-window="${it.uid}">${esc(tr(win ? 'eve.inWindow' : 'eve.window'))}</button></div></div>`; }).join('')}</div>`;
     }
     screen.innerHTML = `<div class="panel"><div class="card evening">
-      <div class="row" style="justify-content:space-between"><h2>${D.DAYS[E.weekday(S)]} evening · Day ${S.day}</h2><div class="tabsrow">${tabs.map(([k, n]) => `<button class="small ${k === tab ? 'on' : 'ghost'}" data-tab="${k}">${n}</button>`).join('')}</div></div>
+      <div class="row" style="justify-content:space-between"><h2>${esc(tr('eve.title', { day: dayName(E.weekday(S)), n: num(S.day) }))}</h2><div class="tabsrow">${tabs.map(([k, n]) => `<button class="small ${k === tab ? 'on' : 'ghost'}" data-tab="${k}">${esc(n)}</button>`).join('')}</div></div>
       <div class="body">${body}</div>
-      <div class="row" style="justify-content:space-between"><span>💷 <b>${money(S.cash)}</b> · Level ${S.level} · ${stars(E.rating(S))}</span><span><button class="ghost small" data-a="menu">Save & quit</button> <button class="green" data-a="sleep">Lock up, next day →</button></span></div>
+      <div class="row" style="justify-content:space-between"><span>💷 <b>${money(S.cash)}</b> · ${esc(tr('eve.footer', { n: num(S.level) }))} · ${stars(E.rating(S))}</span><span><button class="ghost small" data-a="menu">${esc(tr('eve.quit'))}</button> <button class="green" data-a="sleep">${esc(tr('eve.sleep'))}</button></span></div>
     </div></div>`;
+    view = () => showEvening(eveningTab);
     if (tab === 'regs') for (const el of screen.querySelectorAll('[data-reg]')) { const R = D.REGULARS.find(r => r.id === el.dataset.reg); el.querySelector('.pic').appendChild(portrait(R.look, 120, 140, S.regs[R.id].hearts >= 3 ? 'joy' : 'happy')); }
     eveningTab = tab;
   }
   let eveningTab = 'today';
 
-  function showOver() {
+  function showOver(quiet) {
     mode = 'over'; E.wipe();
-    AU.stop();
+    if (!quiet) AU.stop();
     hud.innerHTML = ''; crate.innerHTML = '';
     screen.innerHTML = `<div class="panel"><div class="card over" style="text-align:center;max-width:620px">
-      <h2>Shop closed</h2><p style="font-size:18px">Mr Grimsby changed the locks. Chungy's lasted <b>${S.day} days</b>.</p>
-      <p>Records sold: <b>${S.stats.sold}</b> · Perfect matches: <b>${S.stats.perfect}</b> · Best combo: <b>${S.stats.bestCombo}x</b><br>Crate Book: <b>${Object.keys(S.found).length}/${D.CATALOGUE.length}</b> · Level <b>${S.level}</b></p>
-      <p>Chungy's not done though. There's an empty unit on the next street...</p>
-      <button class="green" data-a="new">Open a new shop</button></div></div>`;
+      <h2>${esc(tr('over.title'))}</h2><p style="font-size:18px">${tn('over.lasted', S.day)}</p>
+      <p>${tr('over.stats', { sold: num(S.stats.sold), perfect: num(S.stats.perfect), combo: num(S.stats.bestCombo), found: num(Object.keys(S.found).length), all: num(D.CATALOGUE.length), level: num(S.level) })}</p>
+      <p>${esc(tr('over.hope'))}</p>
+      <button class="green" data-a="new">${esc(tr('over.new'))}</button></div></div>`;
+    view = () => showOver(true);
   }
 
   // ---------- input ----------
   document.addEventListener('click', ev => {
     AU.init();
-    const el = ev.target.closest('[data-a],[data-lot],[data-uid],[data-play],[data-preview],[data-reg],[data-f],[data-tab],[data-up],[data-frame],[data-window],[data-thief],.flip');
+    const el = ev.target.closest('[data-lang],[data-a],[data-lot],[data-uid],[data-play],[data-preview],[data-reg],[data-f],[data-tab],[data-up],[data-frame],[data-window],[data-thief],.flip');
     if (!el) return;
+    if (el.dataset.lang) { AU.sfx('click'); I.setLang(el.dataset.lang); return; }
     if (el.dataset.play) { ev.stopPropagation(); playRecord(+el.dataset.play); return; }
     if (el.dataset.preview) {
       const rec = D.BY_ID[el.dataset.preview];
-      if (rec) { AU.duck(false); AU.play(rec); toast(`♫ Playing <b>${esc(rec.title)}</b> by ${esc(rec.artist)}`, 'pink'); showEvening('book'); }
+      if (rec) { AU.duck(false); AU.play(rec); toast(tr('toast.playing', { title: esc(rec.title), artist: esc(rec.artist) }), 'pink'); showEvening('book'); }
       return;
     }
     if (el.dataset.reg && mode === 'evening') {
       const R = D.REGULARS.find(r => r.id === el.dataset.reg);
       if (R && R.unlock <= S.level) {
-        const line = R.lines[Math.max(0, (S.regs[R.id].hearts || 1) - 1)];
+        const line = regLine(R, Math.max(0, (S.regs[R.id].hearts || 1) - 1));
         AU.speak(line, { who: R.id, mood: 'happy' });
         toast(`<b>${esc(R.name)}:</b> "${esc(line)}"`, 'pink');
       }
@@ -626,18 +688,20 @@
     if (el.dataset.uid) { tapRecord(+el.dataset.uid); return; }
     if (el.dataset.f) { filter = el.dataset.f; crateSig = ''; AU.sfx('click'); return; }
     if (el.dataset.tab) { AU.sfx('click'); showEvening(el.dataset.tab); return; }
-    if (el.dataset.up) { if (E.buyUpgrade(S, el.dataset.up)) { AU.sfx('till'); toast('Upgrade bought!', 'teal'); } showEvening('ups'); return; }
-    if (el.dataset.frame) { if (!E.toggleWall(S, +el.dataset.frame)) toast('No free frames. Unframe one first, or buy more frames.', 'red'); else AU.sfx('pop'); showEvening('wall'); return; }
+    if (el.dataset.up) { if (E.buyUpgrade(S, el.dataset.up)) { AU.sfx('till'); toast(esc(tr('toast.upBought')), 'teal'); } showEvening('ups'); return; }
+    if (el.dataset.frame) { if (!E.toggleWall(S, +el.dataset.frame)) toast(esc(tr('toast.noFrames')), 'red'); else AU.sfx('pop'); showEvening('wall'); return; }
     if (el.dataset.window) { const it = S.stock.find(x => x.uid === +el.dataset.window); if (it) { S.windowId = it.id; S.window = E.recOf(it).genre; AU.sfx('pop'); } showEvening('wall'); return; }
     if (el.dataset.lot) {
       const dig = E.buyLot(S, el.dataset.lot);
-      if (!dig) { toast('Not enough cash for that one.', 'red'); return; }
+      if (!dig) { toast(esc(tr('toast.noCash')), 'red'); return; }
       AU.sfx('cash'); showDig(dig); return;
     }
     switch (el.dataset.a) {
       case 'new': S = E.newGame(); tipsShown = {}; filter = 'all'; AU.sfx('till'); showMorning(); break;
       case 'continue': S = E.load(); if (!S) return showTitle(); filter = 'all'; if (S.phase === 'evening') { lastSum = null; showEvening('today'); } else if (S.phase === 'shop' || S.phase === 'dig') openShop(); else showMorning(); break;
       case 'how': showHow(); break;
+      case 'lang': AU.sfx('click'); toggleLangMenu(!langOpen); break;
+      case 'langclose': AU.sfx('click'); toggleLangMenu(false); break;
       case 'back': showTitle(); break;
       case 'intro': ev.preventDefault(); AU.stop(); playIntro(showTitle); break;
       case 'skipdig': S.phase = 'dig'; openShop(); break;
@@ -645,19 +709,30 @@
       case 'open': openShop(); break;
       case 'turntable': cycleTurntable(); break;
       case 'away': { const r = E.sendAway(S); handle(r); AU.sfx('click'); bubbleSig = ''; break; }
-      case 'buyin': { const r = E.buyFromSeller(S); if (!r.ok) toast(r.why === 'full' ? 'Your racks are full! Buy an extra rack tonight.' : 'Not enough cash in the till.', 'red'); else { handle(r.ev); AU.sfx('cash'); float(850, 300, r.isNew ? 'NEW FIND!' : 'Bought!', 'pink'); if ('RL'.includes(E.recOf(r.it).rarity)) AU.sfx('rare'); } bubbleSig = ''; crateSig = ''; break; }
+      case 'buyin': { const r = E.buyFromSeller(S); if (!r.ok) toast(esc(tr(r.why === 'full' ? 'toast.racksFull' : 'toast.tillEmpty')), 'red'); else { handle(r.ev); AU.sfx('cash'); float(850, 300, tr(r.isNew ? 'float.newFind' : 'float.bought'), 'pink'); if ('RL'.includes(E.recOf(r.it).rarity)) AU.sfx('rare'); } bubbleSig = ''; crateSig = ''; break; }
       case 'deal': { const cu = E.front(S), a = cu && actors.get(cu.cid); const r = E.haggle(S, false); if (r) { handle(r.ev); saleDone(r, a, cu); } bubbleSig = ''; crateSig = ''; break; }
-      case 'push': { const cu = E.front(S); const r = E.haggle(S, true); if (!r) break; handle(r.ev); if (r.up) { AU.sfx('cash'); AU.speak(r.say, { who: cu.reg, seed: cu.look.seed, mood: 'cross' }); reaction = { cid: cu.cid, text: r.say, until: t + 3 }; } else { AU.sfx('fail'); AU.speak(r.say, { who: cu.reg, seed: cu.look.seed, mood: 'angry' }); toast(esc(r.say), 'red'); } bubbleSig = ''; break; }
-      case 'cat': if (E.petCat(S)) { AU.sfx('meow'); float(cat.x, 470, '♥ purr ♥', 'pink'); toast('Wax the cat calms everyone down.', 'teal'); bubbleSig = ''; } else AU.sfx('meow'); break;
-      case 'pause': paused = !paused; $('#hPause').textContent = paused ? '▶ Resume' : '⏸ Pause'; AU.duck(paused); break;
-      case 'unpause': paused = false; el.closest('.panel').remove(); break;
+      case 'push': { const cu = E.front(S); const r = E.haggle(S, true); if (!r) break; handle(r.ev); if (r.up) { AU.sfx('cash'); AU.speak(say$(r.say), { who: cu.reg, seed: cu.look.seed, mood: 'cross' }); reaction = { cid: cu.cid, text: r.say, until: t + 3 }; } else { AU.sfx('fail'); AU.speak(say$(r.say), { who: cu.reg, seed: cu.look.seed, mood: 'angry' }); toast(esc(say$(r.say)), 'red'); } bubbleSig = ''; break; }
+      case 'cat': if (E.petCat(S)) { AU.sfx('meow'); float(cat.x, 470, tr('cat.purr'), 'pink'); toast(esc(tr('toast.cat')), 'teal'); bubbleSig = ''; } else AU.sfx('meow'); break;
+      case 'pause': if (langOpen) toggleLangMenu(false); paused = !paused; updatePauseBtn(); AU.duck(paused); break;
+      case 'unpause': paused = false; perkShown = null; el.closest('.panel').remove(); break;
       case 'mute': AU.setMuted(!AU.muted); el.textContent = AU.muted ? '🔇' : '🔊'; break;
-      case 'payrent': { const r = E.payRent(S); if (r.over) { showOver(); break; } if (r.paid) { AU.sfx('till'); toast(`Rent paid. Mr Grimsby grunts and leaves.`, 'teal'); } else { AU.sfx('fail'); toast(`Short by ${money(r.due - r.part)}. That's strike ${r.strikes}. One more and the shop closes!`, 'red'); } showEvening('today'); break; }
+      case 'payrent': { const r = E.payRent(S); if (r.over) { showOver(); break; } if (r.paid) { AU.sfx('till'); toast(esc(tr('toast.rentPaid')), 'teal'); } else { AU.sfx('fail'); toast(esc(tr('toast.rentShort', { money: money(r.due - r.part), n: num(r.strikes) })), 'red'); } showEvening('today'); break; }
       case 'sleep': E.nextDay(S); AU.sfx('click'); showMorning(); break;
       case 'menu': E.save(S); AU.stop(); showTitle(); break;
     }
   });
   document.addEventListener('keydown', ev => {
+    if (langOpen && ev.key === 'Escape') { toggleLangMenu(false); return; }
+    if (ev.target && ev.target.closest && ev.target.closest('.langpick')) {
+      // arrow keys move between languages; Enter/Space picks (native button behaviour)
+      if (ev.key === 'ArrowRight' || ev.key === 'ArrowDown' || ev.key === 'ArrowLeft' || ev.key === 'ArrowUp') {
+        ev.preventDefault();
+        const bs = [...ev.target.closest('.langpick').querySelectorAll('[data-lang]')], i = bs.indexOf(ev.target.closest('[data-lang]'));
+        const n = bs[(i + (ev.key === 'ArrowRight' || ev.key === 'ArrowDown' ? 1 : bs.length - 1)) % bs.length]; if (n) n.focus();
+      }
+      return;
+    }
+    if (langOpen) return;
     if (ev.key === 'm' || ev.key === 'M') { const b = $('#hMute'); if (b) b.click(); return; }
     if (mode === 'dig' && (ev.key === ' ' || ev.key === 'Enter')) {
       ev.preventDefault();
@@ -698,8 +773,19 @@
   }
   requestAnimationFrame(frame);
 
+  let view = null;
+  addEventListener('langchange', () => {
+    const wasOpen = langOpen;
+    const m = $('#langMenu'); if (m) m.remove();
+    if (view && mode !== 'intro') view();
+    if (S && hudEls && mode !== 'title' && mode !== 'over' && mode !== 'shop') buildHud();
+    if (wasOpen) renderLangMenu();
+    else if (mode === 'title') { const on = screen.querySelector('[data-lang].on'); if (on) on.focus(); }
+    updatePauseBtn();
+  });
+
   // test hook for automated checks
-  window.__crs = { get S() { return S; }, set S(v) { S = v; }, openShop, showMorning, showEvening, showTitle, get mode() { return mode; } };
+  window.__crs = { get S() { return S; }, set S(v) { S = v; }, openShop, showMorning, showEvening, showTitle, showHow, showGrimsby, showOver, showDig, toggleLangMenu, get mode() { return mode; }, get paused() { return paused; } };
 
   playIntro(showTitle);
 })();

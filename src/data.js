@@ -1,4 +1,5 @@
 // Chungy's Record Shop: game data. Every artist, album and character here is made up.
+// Player-facing text (moods, clues, lots, upgrades, regulars' lines...) lives in i18n/<lang>.js.
 (function (G) {
   'use strict';
 
@@ -13,47 +14,28 @@
   // ---------- genres ----------
   // unlock: the shop level at which customers start asking for it and digs start turning it up.
   const GENRES = {
-    rock:    { name: 'Rock', unlock: 1, col: '#e5483b', alt: '#ffd447', bpm: 128, moods: ['loud', 'party', 'uplifting'],
-      clues: ['proper guitars, none of that computer stuff', 'something to play air guitar to', 'big riffs, big choruses', 'the kind of thing my dad played in the car'] },
-    punk:    { name: 'Punk', unlock: 1, col: '#ff3fa4', alt: '#f6f046', bpm: 170, moods: ['loud', 'weird', 'dark'],
-      clues: ['three chords and an attitude', 'fast, shouty, under two minutes a song', 'something to annoy my landlord', 'safety pins and spit'] },
-    soul:    { name: 'Soul', unlock: 1, col: '#f28c28', alt: '#7a2e1f', bpm: 92, moods: ['romantic', 'sad', 'uplifting'],
-      clues: ['a voice that could break your heart', 'horns, strings, real feeling', 'Sunday morning, kettle on', 'something my nan danced to'] },
-    hiphop:  { name: 'Hip-Hop', unlock: 1, col: '#2f9bff', alt: '#ffb800', bpm: 90, moods: ['party', 'dark', 'chill'],
-      clues: ['beats and rhymes, boom-bap', 'something to nod my head to', 'breaks I can sample', 'bars, proper bars'] },
-    reggae:  { name: 'Reggae', unlock: 1, col: '#2fb35a', alt: '#ffd000', bpm: 76, moods: ['chill', 'uplifting', 'party'],
-      clues: ['sunshine and a bit of bass', 'something for the barbecue', 'off-beat guitar, big bassline', 'roots, rock, the good stuff'] },
-    metal:   { name: 'Metal', unlock: 2, col: '#8e9bb0', alt: '#c3001b', bpm: 150, moods: ['loud', 'dark', 'weird'],
-      clues: ['make my neighbours move house', 'heavier than a skip full of bricks', 'double kick drums, please', 'something to headbang to'] },
-    jazz:    { name: 'Jazz', unlock: 3, col: '#3557c9', alt: '#f4efe1', bpm: 112, moods: ['chill', 'romantic', 'weird'],
-      clues: ['smoky, late at night, saxophone', 'something with a walking bassline', 'cool cats only', 'the sound of a basement club'] },
-    house:   { name: 'House', unlock: 4, col: '#b14bff', alt: '#39f0d0', bpm: 124, moods: ['party', 'uplifting', 'chill'],
-      clues: ['four to the floor till sunrise', 'something for the warehouse', 'a piano stab and a big drop', 'for when the sun comes up at the festival'] },
-    disco:   { name: 'Disco', unlock: 5, col: '#ffcf3f', alt: '#ff5fa2', bpm: 118, moods: ['party', 'romantic', 'uplifting'],
-      clues: ['glitterball energy', 'strings, hi-hats and flares', 'roller-disco night', 'something to strut to'] },
-    folk:    { name: 'Folk', unlock: 6, col: '#a7783f', alt: '#e8dcc0', bpm: 100, moods: ['sad', 'chill', 'romantic'],
-      clues: ['acoustic, round a campfire', 'a fiddle and a story', 'something for a long walk in the hills', 'songs about the sea'] },
+    rock:    { name: 'Rock', unlock: 1, col: '#e5483b', alt: '#ffd447', bpm: 128, moods: ['loud', 'party', 'uplifting'], clues: 4 },
+    punk:    { name: 'Punk', unlock: 1, col: '#ff3fa4', alt: '#f6f046', bpm: 170, moods: ['loud', 'weird', 'dark'], clues: 4 },
+    soul:    { name: 'Soul', unlock: 1, col: '#f28c28', alt: '#7a2e1f', bpm: 92, moods: ['romantic', 'sad', 'uplifting'], clues: 4 },
+    hiphop:  { name: 'Hip-Hop', unlock: 1, col: '#2f9bff', alt: '#ffb800', bpm: 90, moods: ['party', 'dark', 'chill'], clues: 4 },
+    reggae:  { name: 'Reggae', unlock: 1, col: '#2fb35a', alt: '#ffd000', bpm: 76, moods: ['chill', 'uplifting', 'party'], clues: 4 },
+    metal:   { name: 'Metal', unlock: 2, col: '#8e9bb0', alt: '#c3001b', bpm: 150, moods: ['loud', 'dark', 'weird'], clues: 4 },
+    jazz:    { name: 'Jazz', unlock: 3, col: '#3557c9', alt: '#f4efe1', bpm: 112, moods: ['chill', 'romantic', 'weird'], clues: 4 },
+    house:   { name: 'House', unlock: 4, col: '#b14bff', alt: '#39f0d0', bpm: 124, moods: ['party', 'uplifting', 'chill'], clues: 4 },
+    disco:   { name: 'Disco', unlock: 5, col: '#ffcf3f', alt: '#ff5fa2', bpm: 118, moods: ['party', 'romantic', 'uplifting'], clues: 4 },
+    folk:    { name: 'Folk', unlock: 6, col: '#a7783f', alt: '#e8dcc0', bpm: 100, moods: ['sad', 'chill', 'romantic'], clues: 4 },
   };
   const GENRE_IDS = Object.keys(GENRES);
 
-  const MOODS = {
-    loud: ['loud', 'LOUD', 'that rattles the windows'],
-    chill: ['to chill to', 'for a lazy afternoon', 'nice and mellow'],
-    sad: ['for a good cry', 'a bit heartbroken', 'for a rainy day'],
-    party: ['for a party', 'to get people dancing', 'for Saturday night'],
-    romantic: ['for a date night', 'a bit romantic', 'to impress someone special'],
-    uplifting: ['to cheer me up', 'feel-good', 'something happy'],
-    dark: ['dark and moody', 'a bit gloomy', 'for midnight'],
-    weird: ['properly weird', 'something odd', 'that nobody else has heard of'],
-  };
+  // Each mood has three ways customers say it (text in i18n: mood.<id>.0-2).
+  const MOODS = { loud: 3, chill: 3, sad: 3, party: 3, romantic: 3, uplifting: 3, dark: 3, weird: 3 };
   const ERAS = ['60s', '70s', '80s', '90s', '00s'];
-  const ERA_TALK = { '60s': 'from the sixties', '70s': 'from the seventies', '80s': 'from the eighties', '90s': 'from the nineties', '00s': 'from the noughties' };
 
   const RARITY = {
-    C: { name: 'Common', mult: 1, col: '#c9c2b3', w: 70 },
-    U: { name: 'Uncommon', mult: 2.2, col: '#53c46b', w: 22 },
-    R: { name: 'Rare', mult: 5, col: '#3fa9ff', w: 7 },
-    L: { name: 'Legendary', mult: 14, col: '#ffcc33', w: 1 },
+    C: { mult: 1, col: '#c9c2b3', w: 70 },
+    U: { mult: 2.2, col: '#53c46b', w: 22 },
+    R: { mult: 5, col: '#3fa9ff', w: 7 },
+    L: { mult: 14, col: '#ffcc33', w: 1 },
   };
 
   // ---------- name generators ----------
@@ -118,21 +100,21 @@
 
   // ---------- condition grades (real record-shop grading) ----------
   const GRADES = [
-    { id: 'M', name: 'Mint', mult: 1.6, w: 4 },
-    { id: 'NM', name: 'Near Mint', mult: 1.3, w: 14 },
-    { id: 'VG+', name: 'Very Good +', mult: 1.0, w: 34 },
-    { id: 'VG', name: 'Very Good', mult: 0.8, w: 30 },
-    { id: 'G', name: 'Good (crackly)', mult: 0.5, w: 18 },
+    { id: 'M', mult: 1.6, w: 4 },
+    { id: 'NM', mult: 1.3, w: 14 },
+    { id: 'VG+', mult: 1.0, w: 34 },
+    { id: 'VG', mult: 0.8, w: 30 },
+    { id: 'G', mult: 0.5, w: 18 },
   ];
 
   // ---------- dig lots (morning crate buying) ----------
   const LOTS = [
-    { id: 'charity', name: 'Charity shop bin', blurb: 'Cheap and cheerful. Mostly easy listening, the odd surprise.', cost: 15, n: 5, luck: 0.6, minLevel: 1 },
-    { id: 'carboot', name: 'Car boot sale crate', blurb: 'A man called Dave wants it gone by ten.', cost: 30, n: 7, luck: 1, minLevel: 1 },
-    { id: 'loft', name: 'Loft clearance', blurb: 'A whole loft of records, smells of dust and history.', cost: 55, n: 10, luck: 1.25, minLevel: 2 },
-    { id: 'dj', name: 'Retired DJ\'s boxes', blurb: 'Thirty years of club nights. Expect bangers.', cost: 90, n: 10, luck: 1.8, minLevel: 3, bias: ['house', 'hiphop', 'disco', 'reggae'] },
-    { id: 'mystery', name: 'Sealed mystery crate', blurb: 'Taped shut. Could be junk. Could be treasure.', cost: 45, n: 6, luck: 2.4, minLevel: 2, mystery: true },
-    { id: 'estate', name: 'Collector\'s estate sale', blurb: 'A lifetime collection. Premium prices, premium finds.', cost: 160, n: 12, luck: 3, minLevel: 5, van: true },
+    { id: 'charity', cost: 15, n: 5, luck: 0.6, minLevel: 1 },
+    { id: 'carboot', cost: 30, n: 7, luck: 1, minLevel: 1 },
+    { id: 'loft', cost: 55, n: 10, luck: 1.25, minLevel: 2 },
+    { id: 'dj', cost: 90, n: 10, luck: 1.8, minLevel: 3, bias: ['house', 'hiphop', 'disco', 'reggae'] },
+    { id: 'mystery', cost: 45, n: 6, luck: 2.4, minLevel: 2, mystery: true },
+    { id: 'estate', cost: 160, n: 12, luck: 3, minLevel: 5, van: true },
   ];
 
   // ---------- customer looks ----------
@@ -157,57 +139,48 @@
   // ---------- regulars: named characters with their own stories ----------
   const REGULARS = [
     { id: 'beryl', name: 'Nan Beryl', unlock: 1, likes: ['soul'], moods: ['romantic', 'uplifting'], look: { skin: '#f6d3b3', hair: 'bun', hairCol: '#f2f2f2', top: 'cardigan', col: '#c76b9b', acc: 'glasses', build: 0.9, h: 0.88, eyes: '#5d8aa8', lashes: true, lips: '#d47088' },
-      lines: ['Ooh, hello love! I danced to this at the Palais in \'64.', 'My Stan proposed to me during a soul record. Bless him.', 'I\'ve brought you a slice of lemon drizzle. Don\'t tell the doctor.', 'You\'ve got a good ear, young man. Like my Stan.', 'I\'m telling everyone at bingo about this shop!'],
-      perk: { id: 'cake', name: 'Nan\'s Lemon Drizzle', desc: 'Every customer waits 15% longer (cake on the counter).' } },
+      perk: { id: 'cake' } },
     { id: 'kwesi', name: 'DJ Kwesi', unlock: 1, likes: ['hiphop', 'house'], moods: ['party'], look: { skin: '#5f3a22', hair: 'cap', hairCol: '#1c1410', top: 'hoodie', col: '#2f9bff', acc: 'headphones', build: 1, h: 1.02, eyes: '#3b2414' },
-      lines: ['Yo Chungy! Need breaks for Friday\'s set.', 'That last one? Absolute scenes. The crowd lost it.', 'Thinking about doing a set in here one Saturday...', 'Respect. Your crates are getting serious.', 'Saturdays are mine now. I\'ll bring the crowd.'],
-      perk: { id: 'djset', name: 'Kwesi\'s Saturday Sets', desc: 'Saturdays bring 50% more customers.' } },
+      perk: { id: 'djset' } },
     { id: 'gemma', name: 'Gemma Grave', unlock: 1, likes: ['punk', 'metal'], moods: ['dark', 'loud'], look: { skin: '#ffd9c2', hair: 'bob', hairCol: '#111', top: 'leather', col: '#111', acc: 'piercing', build: 0.85, h: 0.96, eyes: '#4e8c6f', lashes: true, lips: '#4a152b' },
-      lines: ['...is it dark? It had better be dark.', 'Fine. That was acceptable. Barely.', 'My band played our first gig. Eleven people came. Amazing.', 'I told my coven about you. They\'re very nice, actually.', 'You\'re alright, Chungy. Don\'t tell anyone I said that.'],
-      perk: { id: 'goths', name: 'The Coven', desc: 'Punk and metal fans tip double.' } },
+      perk: { id: 'goths' } },
     { id: 'terry', name: 'Big Terry', unlock: 2, likes: ['metal', 'rock'], moods: ['loud'], look: { skin: '#eebd94', hair: 'long', hairCol: '#3b2414', top: 'leather', col: '#222', acc: 'beard', build: 1.35, h: 1.1, eyes: '#5a7a9a' },
-      lines: ['LOUDER. Always louder.', 'My Harley and my cat. And metal. That\'s all I need.', 'Someone nicked a record? Point me at them.', 'You\'re a good lad. My cat would like you.', 'Nobody\'s nicking from this shop while I\'m about.'],
-      perk: { id: 'bouncer', name: 'Terry on the Door', desc: 'Shoplifters get caught automatically.' } },
+      perk: { id: 'bouncer' } },
     { id: 'okafor', name: 'Professor Okafor', unlock: 3, likes: ['jazz', 'soul'], moods: ['chill', 'weird'], look: { skin: '#8d5a36', hair: 'beret', hairCol: '#9a9a9a', top: 'turtleneck', col: '#1f2b5c', acc: 'glasses', build: 1, h: 1, eyes: '#3b2414' },
-      lines: ['Ah. A modal approach, I see. Delightful.', 'Did you know this was recorded in a single take?', 'I lecture on this, you know. My students are hopeless.', 'You have the instincts of a true archivist.', 'Here, my old price guide. You\'ll make better use of it.'],
-      perk: { id: 'guide', name: 'The Professor\'s Price Guide', desc: 'See the exact value and rarity of records before you buy a lot.' } },
+      perk: { id: 'guide' } },
     { id: 'pip', name: 'Little Pip', unlock: 2, likes: ['disco', 'house', 'rock'], moods: ['uplifting', 'party'], look: { skin: '#d9a06f', hair: 'curly', hairCol: '#b5752f', top: 'tee', col: '#ffcf3f', acc: 'none', build: 0.8, h: 0.68, eyes: '#7a5230', lashes: true },
-      lines: ['I saved up all my pocket money! It\'s £4 and a button.', 'My mum says vinyl is "a phase". It\'s NOT.', 'I drew you a picture of the shop! The cat is the best bit.', 'When I grow up I want a record shop like yours!', 'I made you a new sign! It\'s got glitter on it.'],
-      perk: { id: 'sign', name: 'Pip\'s Glitter Sign', desc: 'Your shop rating gets a permanent half-star boost.' } },
+      perk: { id: 'sign' } },
     { id: 'rosa', name: 'Rosa Delgado', unlock: 4, likes: ['disco', 'reggae'], moods: ['party', 'romantic'], look: { skin: '#b97a4e', hair: 'afro', hairCol: '#1c1410', top: 'sequin', col: '#ff5fa2', acc: 'earrings', build: 1, h: 1, eyes: '#5c3c20', lashes: true, lips: '#e03c68' },
-      lines: ['Darling! Something to make the hips move!', 'I run the roller-disco on Thursdays, you must come.', 'You know, you dance like nobody\'s watching. Because nobody is.', 'Everybody at the rink asks where I get my records.', 'Party records here sell like hot cakes now, darling.'],
-      perk: { id: 'dancefloor', name: 'Rosa\'s Dancefloor', desc: 'Party records sell for 25% more.' } },
+      perk: { id: 'dancefloor' } },
   ];
 
   // ---------- upgrades (each one appears in the shop scene) ----------
   const UPGRADES = [
-    { id: 'rack', name: 'Extra record rack', icon: '🗄️', levels: [60, 140, 300, 600], desc: 'Hold more stock. Racks: 16, then 24, 34, 46, 60 records.', cap: [16, 24, 34, 46, 60] },
-    { id: 'booth', name: 'Listening booth', icon: '🎧', levels: [120], desc: 'Customers wait 25% longer: they\'re having a listen.' },
-    { id: 'speakers', name: 'Big speakers', icon: '🔊', levels: [90, 260], desc: 'The record on your turntable pulls in more fans of that genre, and they tip more.' },
-    { id: 'neon', name: 'Neon sign', icon: '💡', levels: [150, 400], desc: 'More people notice the shop: +20% customers per level.' },
-    { id: 'cat', name: 'Shop cat (Wax)', icon: '🐈', levels: [80], desc: 'Wax wanders the shop. Click Wax to calm everyone down, once a day.' },
-    { id: 'coffee', name: 'Coffee corner', icon: '☕', levels: [110], desc: 'Every customer buys a coffee: +£2 each, sale or no sale.' },
-    { id: 'wall', name: 'Wall of Fame frames', icon: '🖼️', levels: [70, 180, 420], desc: 'Frame rare records on the wall. Each framed record boosts your rating and pulls in its fans.', slots: [2, 4, 6, 8] },
-    { id: 'van', name: 'Chungy\'s van', icon: '🚐', levels: [350], desc: 'Drive out to estate sales: the best crates in the county.' },
-    { id: 'torch', name: 'Crate-digger\'s torch', icon: '🔦', levels: [100, 300], desc: 'Spot the good stuff: better odds of rare records in every lot.' },
+    { id: 'rack', icon: '🗄️', levels: [60, 140, 300, 600], cap: [16, 24, 34, 46, 60] },
+    { id: 'booth', icon: '🎧', levels: [120] },
+    { id: 'speakers', icon: '🔊', levels: [90, 260] },
+    { id: 'neon', icon: '💡', levels: [150, 400] },
+    { id: 'cat', icon: '🐈', levels: [80] },
+    { id: 'coffee', icon: '☕', levels: [110] },
+    { id: 'wall', icon: '🖼️', levels: [70, 180, 420], slots: [2, 4, 6, 8] },
+    { id: 'van', icon: '🚐', levels: [350] },
+    { id: 'torch', icon: '🔦', levels: [100, 300] },
   ];
 
   // ---------- rent (the landlord, Mr Grimsby) ----------
   const RENT = [120, 220, 360, 520, 700, 920, 1180, 1480, 1820, 2200];
   const rentFor = week => week <= RENT.length ? RENT[week - 1] : Math.round(2200 + (week - RENT.length) * 450);
 
-  const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
   // ---------- daily goals ----------
   const GOALS = [
-    { id: 'perfect', text: n => `Make ${n} perfect matches`, n: [3, 5, 7], reward: 30 },
-    { id: 'combo', text: n => `Reach a ${n}x combo`, n: [3, 5, 8], reward: 40 },
-    { id: 'earn', text: n => `Take £${n} in one day`, n: [80, 150, 260, 400], reward: 35 },
-    { id: 'genre', text: (n, g) => `Sell ${n} ${GENRES[g].name} records`, n: [2, 3, 4], reward: 30, genre: true },
-    { id: 'regular', text: n => `Make ${n} regulars happy`, n: [1, 2], reward: 35 },
-    { id: 'rare', text: n => `Sell a Rare or better record`, n: [1], reward: 45 },
-    { id: 'buyin', text: n => `Buy ${n} records over the counter`, n: [1, 2], reward: 25 },
+    { id: 'perfect', n: [3, 5, 7], reward: 30 },
+    { id: 'combo', n: [3, 5, 8], reward: 40 },
+    { id: 'earn', n: [80, 150, 260, 400], reward: 35 },
+    { id: 'genre', n: [2, 3, 4], reward: 30, genre: true },
+    { id: 'regular', n: [1, 2], reward: 35 },
+    { id: 'rare', n: [1], reward: 45 },
+    { id: 'buyin', n: [1, 2], reward: 25 },
   ];
 
-  G.CRS_DATA = { rng, hash, pick, GENRES, GENRE_IDS, MOODS, ERAS, ERA_TALK, RARITY, GRADES, CATALOGUE, BY_ID, LOTS, SKIN, HAIRCOL, TRIBES, NAMES, REGULARS, UPGRADES, rentFor, DAYS, GOALS };
+  G.CRS_DATA = { rng, hash, pick, GENRES, GENRE_IDS, MOODS, ERAS, RARITY, GRADES, CATALOGUE, BY_ID, LOTS, SKIN, HAIRCOL, TRIBES, NAMES, REGULARS, UPGRADES, rentFor, GOALS };
 })(typeof window !== 'undefined' ? window : globalThis);

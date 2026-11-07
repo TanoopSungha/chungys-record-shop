@@ -1,8 +1,9 @@
 // Chungy's Record Shop: game rules. No DOM in here, so it can be tested in Node.
+// Anything a customer says is a message spec { k: i18n key, v: vars } that the UI turns into text in the player's language.
 (function (G) {
   'use strict';
   const D = G.CRS_DATA;
-  const { GENRES, GENRE_IDS, MOODS, ERAS, ERA_TALK, RARITY, GRADES, CATALOGUE, BY_ID, LOTS, REGULARS, UPGRADES, GOALS } = D;
+  const { GENRES, GENRE_IDS, MOODS, ERAS, RARITY, GRADES, CATALOGUE, BY_ID, LOTS, REGULARS, UPGRADES, GOALS } = D;
 
   const DAY_LEN = 150;          // seconds of shop time per day (10:00 to 18:00)
   const MAX_IN_SHOP = 6;
@@ -12,6 +13,8 @@
   const rand = (a, b) => a + R() * (b - a);
   const chance = p => R() < p;
   const pickR = a => a[Math.floor(R() * a.length)];
+  const ix = n => Math.floor(R() * n);
+  const M = (k, v, cap) => (cap ? { k, v, cap: true } : v ? { k, v } : { k });
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   function weighted(items, w) { let t = 0; for (const i of items) t += w(i); let x = R() * t; for (const i of items) { x -= w(i); if (x <= 0) return i; } return items[items.length - 1]; }
 
@@ -88,10 +91,10 @@
 
   function rollEvent(S) {
     const wd = weekday(S);
-    if (wd === 5 && week(S) % 3 === 0) return { id: 'rsd', name: 'Record Store Day!', desc: 'Queues round the block. Double customers, and collectors are out in force.' };
-    if (wd === 4) return { id: 'payday', name: 'Payday Friday', desc: 'Everyone\'s just been paid: tips are 50% bigger.' };
-    if (S.day > 2 && chance(0.18)) return { id: 'rain', name: 'Pouring with rain', desc: 'Fewer customers, but they\'re in no hurry to go back outside.' };
-    if (S.day > 3 && chance(0.2)) { const g = pickR(unlockedGenres(S)); return { id: 'festival', genre: g, name: GENRES[g].name + ' festival in town', desc: `Loads of ${GENRES[g].name} fans about today, and they pay well.` }; }
+    if (wd === 5 && week(S) % 3 === 0) return { id: 'rsd' };
+    if (wd === 4) return { id: 'payday' };
+    if (S.day > 2 && chance(0.18)) return { id: 'rain' };
+    if (S.day > 3 && chance(0.2)) { const g = pickR(unlockedGenres(S)); return { id: 'festival', genre: g }; }
     return null;
   }
 
@@ -103,7 +106,7 @@
       const tier = Math.min(g.n.length - 1, Math.floor((S.level - 1) / 2));
       const n = g.n[tier];
       const genre = g.genre ? pickR(unlockedGenres(S)) : null;
-      out.push({ id: g.id, n, genre, text: g.text(n, genre), reward: g.reward + 10 * tier, have: 0, done: false });
+      out.push({ id: g.id, n, genre, reward: g.reward + 10 * tier, have: 0, done: false });
     }
     return out;
   }
@@ -112,7 +115,7 @@
       if (g.done || g.id !== id) continue;
       if (g.genre && opts && opts.genre !== g.genre) continue;
       if (id === 'combo' || id === 'earn') g.have = Math.max(g.have, amt); else g.have += amt;
-      if (g.have >= g.n) { g.done = true; S.cash += g.reward; S.goalsDone++; gainXP(S, 15, ev); ev && ev.push({ t: 'goal', text: g.text, reward: g.reward }); }
+      if (g.have >= g.n) { g.done = true; S.cash += g.reward; S.goalsDone++; gainXP(S, 15, ev); ev && ev.push({ t: 'goal', goal: { id: g.id, n: g.n, genre: g.genre }, reward: g.reward }); }
     }
   }
 
@@ -206,7 +209,7 @@
     if (kind === 'collector') {
       const want = forSale.filter(x => 'RL'.includes(recOf(x).rarity));
       const tgt = want.length && chance(0.75) ? recOf(pickR(want)) : pickR(CATALOGUE.filter(r => r.rarity !== 'C' && GENRES[r.genre].unlock <= S.level));
-      return { req: { id: tgt.id }, text: `I'm hunting for "${tgt.title}" by ${tgt.artist}. Any chance?`, genre: tgt.genre };
+      return { req: { id: tgt.id }, say: M('req.collector', { title: tgt.title, artist: tgt.artist }), genre: tgt.genre };
     }
     const mine = forSale.filter(x => recOf(x).genre === genre);
     const base = mine.length && chance(0.8) ? recOf(pickR(mine)) : null;
@@ -215,17 +218,16 @@
       s === 'genre' ? Math.max(0.6, 3 - lvl * 0.5) : s === 'clue' ? 2 : s === 'clue+mood' ? (lvl >= 2 ? 2 : 0.5) : s === 'genre+era' ? 1 : s === 'mood+era' ? (lvl >= 3 ? 1 : 0) : 1.5);
     const mood = base ? pickR(base.moods) : pickR(GENRES[genre].moods);
     const era = base ? base.era : pickR(ERAS);
-    const gn = GENRES[genre].name, clue = pickR(GENRES[genre].clues), mp = pickR(MOODS[mood]);
+    const gn = GENRES[genre].name, clue = M(`clue.${genre}.${ix(GENRES[genre].clues)}`), mp = M(`mood.${mood}.${ix(MOODS[mood])}`), et = M('era.' + era);
     switch (shape) {
-      case 'genre': return { req: { genre }, text: pickR([`Got any ${gn}?`, `Where's your ${gn} section?`, `I'm after some ${gn}, please.`]), genre };
-      case 'clue': return { req: { genre }, text: cap(`${pickR(['I want ', 'Looking for ', 'Got anything... '])}${clue}?`), genre };
-      case 'clue+mood': return { req: { genre, mood }, text: cap(`${clue}... but ${mp}.`), genre };
-      case 'genre+era': return { req: { genre, era }, text: `Any ${gn} ${ERA_TALK[era]}?`, genre };
-      case 'mood+era': return { req: { mood, era }, text: cap(`Anything ${ERA_TALK[era]}, ${mp}? Any style.`), genre };
-      default: return { req: { genre, mood }, text: `${gn}, ${mp}. Go on, surprise me.`, genre };
+      case 'genre': return { req: { genre }, say: M('req.genre.' + ix(3), { genre: gn }), genre };
+      case 'clue': return { req: { genre }, say: M('req.clue.' + ix(3), { clue }, true), genre };
+      case 'clue+mood': return { req: { genre, mood }, say: M('req.clueMood', { clue, mood: mp }, true), genre };
+      case 'genre+era': return { req: { genre, era }, say: M('req.genreEra', { genre: gn, era: et }, true), genre };
+      case 'mood+era': return { req: { mood, era }, say: M('req.moodEra', { era: et, mood: mp }, true), genre };
+      default: return { req: { genre, mood }, say: M('req.genreMood', { genre: gn, mood: mp }, true), genre };
     }
   }
-  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
   function makeLook(genre, seed) {
     const r = D.rng(seed), T = D.TRIBES[genre];
@@ -250,7 +252,7 @@
       const RG = REGULARS.find(r => r.id === force.reg);
       const g = pickR(RG.likes.filter(x => GENRES[x].unlock <= S.level).concat(RG.likes[0]));
       const rq = makeRequest(S, g, 'buyer');
-      if (!rq.req.mood && chance(0.6)) { rq.req.mood = pickR(RG.moods); rq.text = (/[.?!]$/.test(rq.text) ? rq.text : rq.text + '.') + ` Something ${pickR(MOODS[rq.req.mood])}.`; }
+      if (!rq.req.mood && chance(0.6)) { rq.req.mood = pickR(RG.moods); rq.say = M('req.plusMood', { base: rq.say, mood: M(`mood.${rq.req.mood}.${ix(MOODS[rq.req.mood])}`) }); }
       c = { kind: 'regular', reg: RG.id, name: RG.name, look: { ...RG.look, legs: '#2b3a67', seed: id }, ...rq, tries: 2 };
       S.regs[RG.id].visits++;
       T.regsToday.push(RG.id);
@@ -262,11 +264,11 @@
       const collector = !thief && !seller && (roll < (S.event?.id === 'rsd' ? 0.32 : 0.22)) && S.level >= 2;
       const seed = (S.day * 1000 + id) * 7919;
       const name = D.NAMES[seed % D.NAMES.length];
-      if (thief) c = { kind: 'thief', name: 'Hooded figure', look: { ...makeLook(g, seed), top: 'hoodie', col: '#3a3a44', hair: 'hood' }, genre: g, text: '' };
+      if (thief) c = { kind: 'thief', name: '', nameKey: 'name.thief', look: { ...makeLook(g, seed), top: 'hoodie', col: '#3a3a44', hair: 'hood' }, genre: g, say: null };
       else if (seller) {
         const it = rollLot(S, { n: 1, luck: 1.4 })[0];
         const val = valueOf(it);
-        c = { kind: 'seller', name, look: makeLook(recOf(it).genre, seed), genre: recOf(it).genre, offer: it, ask: Math.max(2, Math.round(val * rand(0.35, 0.8))), text: `Clearing out my ${pickR(['dad\'s', 'loft', 'ex\'s', 'nan\'s', 'old'])} records. Want this one?` };
+        c = { kind: 'seller', name, look: makeLook(recOf(it).genre, seed), genre: recOf(it).genre, offer: it, ask: Math.max(2, Math.round(val * rand(0.35, 0.8))), say: M('seller.' + ix(5)) };
       } else {
         const kind = collector ? 'collector' : 'buyer';
         c = { kind, name, look: makeLook(g, seed), tries: 2, ...makeRequest(S, g, kind) };
@@ -357,9 +359,9 @@
     if (sc < 0.55) {
       c.tries--;
       c.face = 'meh';
-      if (c.tries <= 0) { leave(S, c, 1, 'cross', ev); return { ev, ok: false, score: sc, gone: true, say: pickR(['Nah. Not for me.', 'That\'s not it at all.', 'I\'ll try online.']) }; }
+      if (c.tries <= 0) { leave(S, c, 1, 'cross', ev); return { ev, ok: false, score: sc, gone: true, say: M('rejectGone.' + ix(3)) }; }
       c.patience = Math.max(c.patience - c.maxPat * 0.15, 2);
-      return { ev, ok: false, score: sc, say: pickR(['Hmm, not quite...', 'Nah, not really what I meant.', 'Close-ish? Not really.', 'Got anything else?']) };
+      return { ev, ok: false, score: sc, say: M('reject.' + ix(4)) };
     }
     const perfect = sc >= 0.99;
     const val = valueOf(it);
@@ -400,7 +402,7 @@
       if (st.hearts < 5) {
         st.hearts++;
         const RG = REGULARS.find(r => r.id === c.reg);
-        res.regLine = RG.lines[st.hearts - 1];
+        res.regLine = M(`reg.${RG.id}.${st.hearts - 1}`);
         res.hearts = st.hearts;
         if (st.hearts === 5) ev.push({ t: 'perk', reg: RG.id, perk: RG.perk });
       }
@@ -418,9 +420,9 @@
     if (!push) { const res = { ev, ok: true, perfect: true, score: 1, price: h.price, tip: h.tip, rec: recOf(it), combo: S.today.combo, cid: c.cid }; completeSale(S, c, it, h.price, h.tip, true, 1, res); return res; }
     h.round++;
     const p = 0.75 - 0.25 * h.round;
-    if (chance(p)) { h.price = Math.round(h.price * rand(1.18, 1.35)); return { ev, haggle: true, up: true, price: h.price, say: pickR(['Alright, alright! Fine.', 'You drive a hard bargain...', 'Ugh. OK. But that\'s my last offer.']) }; }
+    if (chance(p)) { h.price = Math.round(h.price * rand(1.18, 1.35)); return { ev, haggle: true, up: true, price: h.price, say: M('haggleUp.' + ix(3)) }; }
     c.state = 'queue'; leave(S, c, 2, 'cross', ev);
-    return { ev, walked: true, say: 'Forget it. I\'ll find it somewhere else.' };
+    return { ev, walked: true, say: M('haggleWalk') };
   }
 
   function sendAway(S) {
